@@ -178,9 +178,7 @@ export default function ProfileScreen({ navigation }) {
       {/* Header bar */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
         <View style={styles.headerInner}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
-            <Feather name="arrow-left" size={20} color="rgba(255,255,255,0.9)" />
-          </TouchableOpacity>
+          <Text style={styles.headerTitleText}>Profile</Text>
           <View style={styles.headerRight}>
             <TouchableOpacity
               style={styles.settingsBtn}
@@ -197,7 +195,7 @@ export default function ProfileScreen({ navigation }) {
       </View>
 
       <ScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
         showsVerticalScrollIndicator={false}
       >
         {/* Card container */}
@@ -360,15 +358,10 @@ const styles = StyleSheet.create({
     height: 56,
     paddingHorizontal: 16,
   },
-  headerBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  headerBtnLabel: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 14,
-    fontFamily: fonts.regular,
+  headerTitleText: {
+    color: '#fff',
+    fontSize: 22,
+    fontFamily: fonts.semiBold,
   },
   headerRight: {
     flexDirection: 'row',

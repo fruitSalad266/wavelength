@@ -24,6 +24,8 @@ const RECENT_CARD_WIDTH = SCREEN_WIDTH * 0.58;
 
 const categories = ['All', 'Music', 'Art', 'Food', 'Sports', 'Networking', 'Technology'];
 
+const STARRED_EVENT_IDS = ['1', '3'];
+
 const recentlyHappening = [
   {
     id: 'recent-1',
@@ -89,14 +91,21 @@ function RecentCard({ item }) {
   );
 }
 
-function FriendEventCard({ event, friends, onPress }) {
+function FriendEventCard({ event, friends, onPress, isStarred }) {
   return (
     <TouchableOpacity style={styles.friendCard} activeOpacity={0.85} onPress={onPress}>
       <Image source={{ uri: event.backgroundImage }} style={styles.friendCardImage} />
       <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)']} style={styles.friendCardOverlay} />
 
       <View style={styles.friendCardTop}>
-        <Badge label={event.category} />
+        <View style={styles.friendCardBadgeRow}>
+          <Badge label={event.category} />
+          {isStarred && (
+            <View style={styles.starBadge}>
+              <Feather name="star" size={14} color="#fbbf24" />
+            </View>
+          )}
+        </View>
         <View style={styles.avatarRow}>
           {friends.map((friend, index) => (
             <Avatar
@@ -125,14 +134,21 @@ function FriendEventCard({ event, friends, onPress }) {
   );
 }
 
-function EventCard({ event, onPress }) {
+function EventCard({ event, onPress, isStarred }) {
   return (
     <TouchableOpacity style={styles.eventCard} activeOpacity={0.85} onPress={onPress}>
       <Image source={{ uri: event.backgroundImage }} style={styles.eventCardImage} />
       <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)']} style={styles.eventCardOverlay} />
 
       <View style={styles.eventCardContent}>
-        <Badge label={event.category} />
+        <View style={styles.eventCardTopRow}>
+          <Badge label={event.category} />
+          {isStarred && (
+            <View style={styles.starBadge}>
+              <Feather name="star" size={14} color="#fbbf24" />
+            </View>
+          )}
+        </View>
         <View style={{ flex: 1 }} />
         <Text style={styles.eventCardTitle}>{event.title}</Text>
         <View style={styles.eventMeta}>
@@ -179,17 +195,13 @@ export default function EventFeedScreen({ navigation }) {
             </LinearGradient>
             <Text style={styles.headerTitle}>Wavelength</Text>
           </View>
-          <TouchableOpacity
-            style={styles.profileBtn}
-            onPress={() => navigation.navigate('Profile')}
-          >
-            <Feather name="user" size={16} color="#fff" />
-            <Text style={styles.profileBtnText}>Profile</Text>
+          <TouchableOpacity style={styles.notifBtn}>
+            <Feather name="bell" size={20} color="#fff" />
           </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]} showsVerticalScrollIndicator={false}>
         {/* Welcome */}
         <View style={styles.section}>
           <Text style={styles.welcomeTitle}>Welcome back, Alex!</Text>
@@ -220,6 +232,7 @@ export default function EventFeedScreen({ navigation }) {
               key={event.id}
               event={event}
               friends={friends}
+              isStarred={STARRED_EVENT_IDS.includes(event.id)}
               onPress={() => navigation.navigate('EventDetail', { eventId: event.id })}
             />
           ))}
@@ -256,6 +269,7 @@ export default function EventFeedScreen({ navigation }) {
           <EventCard
             key={event.id}
             event={event}
+            isStarred={STARRED_EVENT_IDS.includes(event.id)}
             onPress={() => navigation.navigate('EventDetail', { eventId: event.id })}
           />
         ))}
@@ -305,19 +319,13 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semiBold,
     letterSpacing: 0.5,
   },
-  profileBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#00ac9b',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+  notifBtn: {
+    width: 40,
+    height: 40,
     borderRadius: 20,
-  },
-  profileBtnText: {
-    color: '#fff',
-    fontSize: 14,
-    fontFamily: fonts.medium,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   scrollContent: {
@@ -402,7 +410,22 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semiBold,
   },
 
+  // Star badge
+  starBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   // Friends Attending
+  friendCardBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   friendCard: {
     height: 190,
     borderRadius: 14,
@@ -514,6 +537,11 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     padding: 18,
     justifyContent: 'space-between',
+  },
+  eventCardTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   eventCardTitle: {
     color: '#fff',

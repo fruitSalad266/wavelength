@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -56,12 +56,14 @@ const EVENT = {
 };
 
 const ATTENDEES = [
-  { id: '1', name: 'Sarah Mitchell', avatar: 'https://images.unsplash.com/photo-1575454211631-f5aba648b97d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', isGoodMatch: true },
-  { id: '2', name: 'Michael Chen', avatar: 'https://images.unsplash.com/photo-1724602048497-ecb722b13034?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', isGoodMatch: false },
-  { id: '3', name: 'Emma Rodriguez', avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', isGoodMatch: true },
-  { id: '4', name: 'James Park', avatar: 'https://images.unsplash.com/photo-1760574740271-55e6683afe76?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', isGoodMatch: false },
-  { id: '5', name: 'Lisa Anderson', avatar: 'https://images.unsplash.com/photo-1643816831186-b2427a8f9f2d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', isGoodMatch: true },
-  { id: '6', name: 'David Thompson', avatar: 'https://images.unsplash.com/photo-1758686253859-8ef7e940096e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', isGoodMatch: false },
+  { id: '1', name: 'Sarah Mitchell', avatar: 'https://images.unsplash.com/photo-1575454211631-f5aba648b97d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', isGoodMatch: true, status: 'going' },
+  { id: '2', name: 'Michael Chen', avatar: 'https://images.unsplash.com/photo-1724602048497-ecb722b13034?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', isGoodMatch: false, status: 'going' },
+  { id: '3', name: 'Emma Rodriguez', avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', isGoodMatch: true, status: 'going' },
+  { id: '4', name: 'James Park', avatar: 'https://images.unsplash.com/photo-1760574740271-55e6683afe76?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', isGoodMatch: false, status: 'maybe' },
+  { id: '5', name: 'Lisa Anderson', avatar: 'https://images.unsplash.com/photo-1643816831186-b2427a8f9f2d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', isGoodMatch: true, status: 'going' },
+  { id: '6', name: 'David Thompson', avatar: 'https://images.unsplash.com/photo-1758686253859-8ef7e940096e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', isGoodMatch: false, status: 'going' },
+  { id: '13', name: 'Olivia Foster', avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', isGoodMatch: false, status: 'maybe' },
+  { id: '14', name: 'Tyler Nguyen', avatar: 'https://images.unsplash.com/photo-1724602048497-ecb722b13034?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', isGoodMatch: false, status: 'maybe' },
 ];
 
 const MUTUAL_CONNECTIONS = [
@@ -115,21 +117,30 @@ function MutualPersonCard({ person }) {
 }
 
 function AttendeeCard({ attendee }) {
-  const initials = attendee.name.split(' ').map((n) => n[0]).join('');
-  return (
-    <View style={[s.attendeeCard, attendee.isGoodMatch && s.attendeeCardMatch]}>
-      <View style={s.attendeeAvatarWrap}>
-        <Avatar uri={attendee.avatar} name={attendee.name} size={44} style={{ borderWidth: 0 }} />
-        {attendee.isGoodMatch && (
+  if (attendee.isGoodMatch) {
+    return (
+      <View style={[s.attendeeCard, s.attendeeCardMatch]}>
+        <View style={s.attendeeAvatarWrap}>
+          <Avatar uri={attendee.avatar} name={attendee.name} size={44} style={{ borderWidth: 0 }} />
           <View style={s.sparkBadge}>
             <Feather name="zap" size={10} color="#fff" />
           </View>
-        )}
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.attendeeName} numberOfLines={1}>{attendee.name}</Text>
+          <Text style={s.attendeeSub}>94% Match</Text>
+        </View>
       </View>
-      <View style={{ flex: 1 }}>
-        <Text style={s.attendeeName} numberOfLines={1}>{attendee.name}</Text>
-        <Text style={s.attendeeSub}>{attendee.isGoodMatch ? '94% Match' : 'Going'}</Text>
-      </View>
+    );
+  }
+
+  return (
+    <View style={[s.attendeeCardCompact, attendee.status === 'maybe' && s.attendeeCardMaybe]}>
+      <Avatar uri={attendee.avatar} name={attendee.name} size={34} style={{ borderWidth: 0 }} />
+      <Text style={s.attendeeNameCompact} numberOfLines={1}>{attendee.name}</Text>
+      {attendee.status === 'maybe' && (
+        <Text style={s.attendeeMaybeLabel}>Maybe</Text>
+      )}
     </View>
   );
 }
@@ -178,6 +189,7 @@ function Card({ children, style }) {
 
 export default function EventDetailScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
+  const [isStarred, setIsStarred] = useState(false);
   // route.params?.eventId reserved for future Supabase lookup
   const event = EVENT;
 
@@ -189,6 +201,16 @@ export default function EventDetailScreen({ route, navigation }) {
       <View style={[s.header, { paddingTop: insets.top }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={s.backRow}>
           <Feather name="arrow-left" size={20} color="rgba(255,255,255,0.9)" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setIsStarred((prev) => !prev)}
+          style={s.starBtn}
+        >
+          <Feather
+            name="star"
+            size={20}
+            color={isStarred ? '#fbbf24' : 'rgba(255,255,255,0.9)'}
+          />
         </TouchableOpacity>
       </View>
 
@@ -341,6 +363,9 @@ const s = StyleSheet.create({
   header: {
     backgroundColor: 'rgba(255,255,255,0.25)',
     paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   backRow: {
     flexDirection: 'row',
@@ -348,10 +373,13 @@ const s = StyleSheet.create({
     gap: 8,
     height: 56,
   },
-  backLabel: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 14,
-    fontFamily: fonts.regular,
+  starBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // Outer card
@@ -582,16 +610,12 @@ const s = StyleSheet.create({
     fontFamily: fonts.regular,
   },
   attendeeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
+    gap: 8,
   },
   attendeeCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    flexBasis: '48%',
-    flexGrow: 1,
     padding: 10,
     borderRadius: 10,
   },
@@ -599,6 +623,16 @@ const s = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#7300ff',
     backgroundColor: '#f8f3ff',
+  },
+  attendeeCardCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  attendeeCardMaybe: {
+    opacity: 0.6,
   },
   attendeeAvatarWrap: {
     position: 'relative',
@@ -619,11 +653,22 @@ const s = StyleSheet.create({
     fontSize: 13,
     fontFamily: fonts.medium,
   },
+  attendeeNameCompact: {
+    color: '#101828',
+    fontSize: 13,
+    fontFamily: fonts.medium,
+    flex: 1,
+  },
   attendeeSub: {
     color: '#4a5565',
     fontSize: 11,
     fontFamily: fonts.regular,
     marginTop: 1,
+  },
+  attendeeMaybeLabel: {
+    color: '#4a5565',
+    fontSize: 11,
+    fontFamily: fonts.regular,
   },
   seeAllBtn: {
     marginTop: 14,
