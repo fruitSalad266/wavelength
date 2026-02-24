@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { mockEvents } from '../data/mockEvents';
 import { Avatar } from '../components/Avatar';
 import { Badge } from '../components/Badge';
+import { fonts } from '../theme/fonts';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = SCREEN_WIDTH * 0.6;
@@ -296,12 +297,12 @@ const styles = StyleSheet.create({
   logoText: {
     color: '#fff',
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   headerTitle: {
     color: '#fff',
     fontSize: 22,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     letterSpacing: 0.5,
   },
   profileBtn: {
@@ -316,7 +317,7 @@ const styles = StyleSheet.create({
   profileBtnText: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
 
   scrollContent: {
@@ -336,7 +337,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: '#fff',
     fontSize: 20,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     marginBottom: 4,
   },
 
@@ -344,12 +345,13 @@ const styles = StyleSheet.create({
   welcomeTitle: {
     color: '#fff',
     fontSize: 30,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     marginBottom: 6,
   },
   welcomeSub: {
     color: '#c4dcff',
     fontSize: 16,
+    fontFamily: fonts.regular,
   },
 
   // Recently Happening
@@ -392,12 +394,12 @@ const styles = StyleSheet.create({
   liveText: {
     color: '#fff',
     fontSize: 11,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
   recentTitle: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
   },
 
   // Friends Attending
@@ -436,7 +438,7 @@ const styles = StyleSheet.create({
   friendCardTitle: {
     color: '#fff',
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     marginBottom: 8,
   },
 
@@ -449,6 +451,7 @@ const styles = StyleSheet.create({
   metaText: {
     color: 'rgba(255,255,255,0.9)',
     fontSize: 13,
+    fontFamily: fonts.regular,
   },
 
   // Category Filters
@@ -473,7 +476,7 @@ const styles = StyleSheet.create({
   categoryText: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
   categoryTextActive: {
     color: '#7300ff',
@@ -483,12 +486,13 @@ const styles = StyleSheet.create({
   upcomingTitle: {
     color: '#fff',
     fontSize: 26,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     marginBottom: 4,
   },
   upcomingSub: {
     color: '#c4dcff',
     fontSize: 15,
+    fontFamily: fonts.regular,
   },
 
   // Event Card
@@ -514,7 +518,7 @@ const styles = StyleSheet.create({
   eventCardTitle: {
     color: '#fff',
     fontSize: 22,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     marginBottom: 10,
   },
   eventMeta: {

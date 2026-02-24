@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { fonts } from '../theme/fonts';
 
 export function Badge({ label, style, textStyle }) {
   return (
@@ -20,6 +21,6 @@ const styles = StyleSheet.create({
   text: {
     color: '#fff',
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
   },
 });

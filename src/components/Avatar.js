@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Image, Text, StyleSheet } from 'react-native';
+import { fonts } from '../theme/fonts';
 
 export function Avatar({ uri, name, size = 32, style }) {
   const [failed, setFailed] = useState(false);
@@ -38,6 +39,6 @@ const styles = StyleSheet.create({
   },
   fallbackText: {
     color: '#fff',
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
   },
 });

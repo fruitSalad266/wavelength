@@ -14,6 +14,7 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '../components/Avatar';
 import { Badge } from '../components/Badge';
+import { fonts } from '../theme/fonts';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -179,7 +180,6 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.headerInner}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
             <Feather name="arrow-left" size={20} color="rgba(255,255,255,0.9)" />
-            <Text style={styles.headerBtnLabel}>Back to Events</Text>
           </TouchableOpacity>
           <View style={styles.headerRight}>
             <TouchableOpacity
@@ -252,7 +252,7 @@ export default function ProfileScreen({ navigation }) {
               <TouchableOpacity style={styles.addFriendBtn} activeOpacity={0.8}>
                 <Text style={styles.addFriendText}>Add Friend</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.messageBtn} activeOpacity={0.8}>
+              <TouchableOpacity style={styles.messageBtn} activeOpacity={0.8} onPress={() => navigation.navigate('DirectMessage', { userId: 'alex' })}>
                 <Text style={styles.messageBtnText}>Message</Text>
               </TouchableOpacity>
             </View>
@@ -368,6 +368,7 @@ const styles = StyleSheet.create({
   headerBtnLabel: {
     color: 'rgba(255,255,255,0.9)',
     fontSize: 14,
+    fontFamily: fonts.regular,
   },
   headerRight: {
     flexDirection: 'row',
@@ -386,6 +387,7 @@ const styles = StyleSheet.create({
   settingsBtnText: {
     color: 'rgba(255,255,255,0.9)',
     fontSize: 14,
+    fontFamily: fonts.regular,
   },
   moreBtn: {
     width: 40,
@@ -442,7 +444,7 @@ const styles = StyleSheet.create({
   },
   profileName: {
     fontSize: 36,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: '#101828',
     marginBottom: 8,
   },
@@ -454,10 +456,12 @@ const styles = StyleSheet.create({
   },
   locationText: {
     fontSize: 15,
+    fontFamily: fonts.regular,
     color: '#4a5565',
   },
   ageText: {
     fontSize: 15,
+    fontFamily: fonts.regular,
     color: '#4a5565',
     marginLeft: 12,
   },
@@ -468,7 +472,7 @@ const styles = StyleSheet.create({
   },
   mutualText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
     color: '#7300ff',
   },
 
@@ -493,6 +497,7 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: 14,
+    fontFamily: fonts.regular,
     color: '#1e2939',
   },
 
@@ -512,7 +517,7 @@ const styles = StyleSheet.create({
   addFriendText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
   },
   messageBtn: {
     flex: 1,
@@ -524,7 +529,7 @@ const styles = StyleSheet.create({
   messageBtnText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
   },
 
   // Card
@@ -543,7 +548,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: '#101828',
     marginBottom: 12,
   },
@@ -551,6 +556,7 @@ const styles = StyleSheet.create({
   // Bio
   bioText: {
     fontSize: 15,
+    fontFamily: fonts.regular,
     color: '#4a5565',
     lineHeight: 22,
   },
@@ -564,7 +570,7 @@ const styles = StyleSheet.create({
   },
   promptLabel: {
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
     color: '#4a5565',
   },
   topEventRow: {
@@ -578,12 +584,13 @@ const styles = StyleSheet.create({
   },
   topEventTitle: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: '#101828',
     marginBottom: 2,
   },
   topEventDesc: {
     fontSize: 13,
+    fontFamily: fonts.regular,
     color: '#4a5565',
   },
 
@@ -603,16 +610,18 @@ const styles = StyleSheet.create({
   },
   anthemLabel: {
     fontSize: 13,
+    fontFamily: fonts.regular,
     color: '#4a5565',
     marginBottom: 2,
   },
   anthemTitle: {
     fontSize: 17,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: '#101828',
   },
   anthemArtist: {
     fontSize: 15,
+    fontFamily: fonts.regular,
     color: '#4a5565',
   },
   playBtn: {
@@ -644,12 +653,13 @@ const styles = StyleSheet.create({
   eventThumbTitle: {
     color: '#fff',
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     marginBottom: 2,
   },
   eventThumbDate: {
     color: 'rgba(255,255,255,0.8)',
     fontSize: 9,
+    fontFamily: fonts.regular,
   },
 
   // Social grid
@@ -666,6 +676,7 @@ const styles = StyleSheet.create({
   },
   socialLabel: {
     fontSize: 15,
+    fontFamily: fonts.regular,
     color: '#101828',
   },
 
@@ -702,7 +713,7 @@ const styles = StyleSheet.create({
   },
   friendName: {
     fontSize: 17,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: '#101828',
     marginBottom: 6,
   },
@@ -720,6 +731,7 @@ const styles = StyleSheet.create({
   },
   friendInterestText: {
     fontSize: 11,
+    fontFamily: fonts.regular,
     color: '#1e2939',
   },
   uwBadge: {
@@ -732,6 +744,6 @@ const styles = StyleSheet.create({
   uwBadgeText: {
     color: '#fff',
     fontSize: 11,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
 });
