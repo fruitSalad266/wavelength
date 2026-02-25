@@ -10,7 +10,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { mockEvents } from '../data/mockEvents';
 import { Badge } from '../components/Badge';
@@ -36,9 +36,7 @@ function LargeEventCard({ event, onPress, isStarred }) {
         <View style={s.eventCardTopRow}>
           <Badge label={event.category} />
           {isStarred && (
-            <View style={s.starBadge}>
-              <Feather name="star" size={14} color="#fbbf24" />
-            </View>
+            <Ionicons name="star" size={16} color="#fbbf24" />
           )}
         </View>
         <View style={{ flex: 1 }} />
@@ -217,14 +215,6 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  starBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   eventCardTitle: {
     color: '#fff',

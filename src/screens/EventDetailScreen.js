@@ -11,7 +11,7 @@ import {
   Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '../components/Avatar';
 import { Badge } from '../components/Badge';
@@ -206,8 +206,8 @@ export default function EventDetailScreen({ route, navigation }) {
           onPress={() => setIsStarred((prev) => !prev)}
           style={s.starBtn}
         >
-          <Feather
-            name="star"
+          <Ionicons
+            name={isStarred ? 'star' : 'star-outline'}
             size={20}
             color={isStarred ? '#fbbf24' : 'rgba(255,255,255,0.9)'}
           />
@@ -374,12 +374,7 @@ const s = StyleSheet.create({
     height: 56,
   },
   starBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: 8,
   },
 
   // Outer card

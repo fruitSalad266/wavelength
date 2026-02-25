@@ -11,7 +11,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { mockEvents } from '../data/mockEvents';
 import { Avatar } from '../components/Avatar';
@@ -98,28 +98,24 @@ function FriendEventCard({ event, friends, onPress, isStarred }) {
       <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)']} style={styles.friendCardOverlay} />
 
       <View style={styles.friendCardTop}>
-        <View style={styles.friendCardBadgeRow}>
-          <Badge label={event.category} />
-          {isStarred && (
-            <View style={styles.starBadge}>
-              <Feather name="star" size={14} color="#fbbf24" />
-            </View>
-          )}
-        </View>
+        <Badge label={event.category} />
+        {isStarred && (
+          <Ionicons name="star" size={16} color="#fbbf24" />
+        )}
+      </View>
+
+      <View style={styles.friendCardBottom}>
         <View style={styles.avatarRow}>
           {friends.map((friend, index) => (
             <Avatar
               key={index}
               uri={friend.avatar}
               name={friend.name}
-              size={28}
-              style={{ marginLeft: index > 0 ? -8 : 0 }}
+              size={26}
+              style={{ marginLeft: index > 0 ? -8 : 0, borderWidth: 1.5, borderColor: '#fff' }}
             />
           ))}
         </View>
-      </View>
-
-      <View style={styles.friendCardBottom}>
         <Text style={styles.friendCardTitle}>{event.title}</Text>
         <View style={styles.metaRow}>
           <Feather name="calendar" size={13} color="rgba(255,255,255,0.9)" />
@@ -144,9 +140,7 @@ function EventCard({ event, onPress, isStarred }) {
         <View style={styles.eventCardTopRow}>
           <Badge label={event.category} />
           {isStarred && (
-            <View style={styles.starBadge}>
-              <Feather name="star" size={14} color="#fbbf24" />
-            </View>
+            <Ionicons name="star" size={16} color="#fbbf24" />
           )}
         </View>
         <View style={{ flex: 1 }} />
@@ -191,12 +185,13 @@ export default function EventFeedScreen({ navigation }) {
         <View style={styles.headerInner}>
           <View style={styles.headerLeft}>
             <LinearGradient colors={['#7300ff', '#00ac9b']} style={styles.logoBox}>
-              <Text style={styles.logoText}>W</Text>
+              <Image source={require('../../assets/splash-icon.png')} style={styles.logoImage} />
             </LinearGradient>
             <Text style={styles.headerTitle}>Wavelength</Text>
           </View>
-          <TouchableOpacity style={styles.notifBtn}>
+          <TouchableOpacity style={styles.notifBtn} onPress={() => navigation.navigate('Notifications')}>
             <Feather name="bell" size={20} color="#fff" />
+            <View style={styles.notifDot} />
           </TouchableOpacity>
         </View>
       </View>
@@ -308,24 +303,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoText: {
-    color: '#fff',
-    fontSize: 18,
-    fontFamily: fonts.bold,
+  logoImage: {
+    width: 40,
+    height: 40,
+    resizeMode: 'contain',
+    tintColor: '#fff',
   },
   headerTitle: {
     color: '#fff',
     fontSize: 22,
-    fontFamily: fonts.semiBold,
+    fontFamily: fonts.regular,
     letterSpacing: 0.5,
   },
   notifBtn: {
+    position: 'relative',
     width: 40,
     height: 40,
     borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  notifDot: {
+    position: 'absolute',
+    top: 8,
+    right: 9,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#ef4444',
+    borderWidth: 1.5,
+    borderColor: '#7300ff',
   },
 
   scrollContent: {
@@ -411,21 +419,10 @@ const styles = StyleSheet.create({
   },
 
   // Star badge
-  starBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  
 
   // Friends Attending
-  friendCardBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
+  
   friendCard: {
     height: 190,
     borderRadius: 14,
@@ -445,11 +442,13 @@ const styles = StyleSheet.create({
     left: 14,
     right: 14,
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   avatarRow: {
     flexDirection: 'row',
+    marginBottom: 8,
   },
   friendCardBottom: {
     position: 'absolute',
