@@ -297,8 +297,8 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   logoBox: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
@@ -317,12 +317,7 @@ const styles = StyleSheet.create({
   },
   notifBtn: {
     position: 'relative',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: 8,
   },
   notifDot: {
     position: 'absolute',

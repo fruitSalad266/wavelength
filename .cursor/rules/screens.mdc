@@ -1,0 +1,12 @@
+---
+description: Screen layout and patterns for src/screens
+globs: src/screens/**/*.js
+alwaysApply: false
+---
+# Screen patterns
+
+- **Safe area:** Call `useSafeAreaInsets()` and use `insets.top` for header padding, `insets.bottom` for scroll content and tab bar clearance (e.g. `paddingBottom: insets.bottom + 100` when tab bar is visible).
+- **Full-screen gradient:** Use `LinearGradient` with `colors={['#7300ff', '#00ac9b']}` (or `['#6610f2', '#7300ff', '#00ac9b']`) and `style={StyleSheet.absoluteFill}` behind content.
+- **Headers:** Custom headers with back button (`Feather name="arrow-left"`), optional right actions; no native stack header.
+- **Text:** Use `fonts` from `../theme/fonts` for all `fontFamily` (e.g. `fontFamily: fonts.semiBold`).
+- **Cards/sections:** White or light cards with `borderRadius: 10`, `borderColor: '#e5e7eb'`, padding ~16–18. Keep visual style consistent with EventFeedScreen, ProfileScreen, ChatsScreen.
