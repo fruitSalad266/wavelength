@@ -9,6 +9,8 @@ import {
   FlatList,
   Dimensions,
   Linking,
+  Modal,
+  Switch,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -56,6 +58,7 @@ const EVENT = {
 };
 
 const ATTENDEES = [
+  { id: 'dyllan', name: 'Dyllan Krouse', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', isGoodMatch: true, status: 'going', userId: 'dyllan' },
   { id: '1', name: 'Sarah Mitchell', avatar: 'https://images.unsplash.com/photo-1575454211631-f5aba648b97d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', isGoodMatch: true, status: 'going' },
   { id: '2', name: 'Michael Chen', avatar: 'https://images.unsplash.com/photo-1724602048497-ecb722b13034?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', isGoodMatch: false, status: 'going' },
   { id: '3', name: 'Emma Rodriguez', avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', isGoodMatch: true, status: 'going' },
@@ -73,6 +76,12 @@ const MUTUAL_CONNECTIONS = [
   { id: '10', name: 'Priya Patel', avatar: 'https://images.unsplash.com/photo-1643816831186-b2427a8f9f2d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', mutualFriends: 15 },
   { id: '11', name: 'Ryan Martinez', avatar: 'https://images.unsplash.com/photo-1758686253859-8ef7e940096e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', mutualFriends: 3 },
   { id: '12', name: 'Nina Williams', avatar: 'https://images.unsplash.com/photo-1575454211631-f5aba648b97d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', mutualFriends: 9 },
+];
+
+const FRIENDS_GOING = [
+  { id: '1', name: 'Sarah Mitchell', avatar: 'https://images.unsplash.com/photo-1575454211631-f5aba648b97d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200' },
+  { id: '2', name: 'Michael Chen', avatar: 'https://images.unsplash.com/photo-1724602048497-ecb722b13034?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200' },
+  { id: '3', name: 'Emma Rodriguez', avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200' },
 ];
 
 const GROUP_CHATS = [
@@ -116,10 +125,13 @@ function MutualPersonCard({ person }) {
   );
 }
 
-function AttendeeCard({ attendee }) {
+function AttendeeCard({ attendee, onPress }) {
+  const Wrapper = attendee.userId ? TouchableOpacity : View;
+  const wrapperProps = attendee.userId ? { activeOpacity: 0.7, onPress } : {};
+
   if (attendee.isGoodMatch) {
     return (
-      <View style={[s.attendeeCard, s.attendeeCardMatch]}>
+      <Wrapper style={[s.attendeeCard, s.attendeeCardMatch]} {...wrapperProps}>
         <View style={s.attendeeAvatarWrap}>
           <Avatar uri={attendee.avatar} name={attendee.name} size={44} style={{ borderWidth: 0 }} />
           <View style={s.sparkBadge}>
@@ -130,18 +142,18 @@ function AttendeeCard({ attendee }) {
           <Text style={s.attendeeName} numberOfLines={1}>{attendee.name}</Text>
           <Text style={s.attendeeSub}>94% Match</Text>
         </View>
-      </View>
+      </Wrapper>
     );
   }
 
   return (
-    <View style={[s.attendeeCardCompact, attendee.status === 'maybe' && s.attendeeCardMaybe]}>
+    <Wrapper style={[s.attendeeCardCompact, attendee.status === 'maybe' && s.attendeeCardMaybe]} {...wrapperProps}>
       <Avatar uri={attendee.avatar} name={attendee.name} size={34} style={{ borderWidth: 0 }} />
       <Text style={s.attendeeNameCompact} numberOfLines={1}>{attendee.name}</Text>
       {attendee.status === 'maybe' && (
         <Text style={s.attendeeMaybeLabel}>Maybe</Text>
       )}
-    </View>
+    </Wrapper>
   );
 }
 
@@ -190,8 +202,14 @@ function Card({ children, style }) {
 export default function EventDetailScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
   const [isStarred, setIsStarred] = useState(false);
-  // route.params?.eventId reserved for future Supabase lookup
+  const [markModalVisible, setMarkModalVisible] = useState(false);
+  const [rsvpStatus, setRsvpStatus] = useState(null); // null | 'going' | 'maybe'
+  const [isPublic, setIsPublic] = useState(true);
   const event = EVENT;
+
+  const handleConfirmRsvp = () => {
+    setMarkModalVisible(false);
+  };
 
   return (
     <View style={s.root}>
@@ -215,137 +233,238 @@ export default function EventDetailScreen({ route, navigation }) {
       </View>
 
       <ScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* White card wrapper */}
-        <View style={s.outerCard}>
-          {/* Banner */}
-          <View style={s.banner}>
-            <Image source={{ uri: event.bannerImage }} style={StyleSheet.absoluteFill} />
-            <LinearGradient
-              colors={['rgba(0,0,0,0)', 'rgba(201,194,244,0.4)', 'rgba(201,194,244,0.95)']}
-              style={StyleSheet.absoluteFill}
-            />
-            <View style={s.bannerContent}>
-              <Text style={s.bannerTitle}>{event.title}</Text>
-              <Text style={s.bannerVenue}>@ {event.venue}</Text>
-            </View>
-          </View>
-
-          {/* Content area */}
-          <View style={s.body}>
-            {/* Date & time */}
-            <View style={s.dateRow}>
-              <View style={s.dateItem}>
-                <Feather name="calendar" size={18} color="#7300ff" />
-                <Text style={s.dateText}>{event.date}</Text>
-              </View>
-              <View style={s.dateItem}>
-                <Feather name="clock" size={18} color="#7300ff" />
-                <Text style={s.dateText}>{event.time}</Text>
-              </View>
-            </View>
-
-            {/* Tags */}
-            <View style={s.tagsRow}>
-              {event.tags.map((tag, i) => (
-                <TagBadge key={i} label={tag.label} variant={tag.variant} />
-              ))}
-            </View>
-
-            {/* Ticketmaster */}
-            <LinearGradient colors={['#026cdf', '#0054a6']} style={s.ticketCard}>
-              <View style={s.ticketHeader}>
-                <View>
-                  <Text style={s.ticketTitle}>Get Your Tickets</Text>
-                  <Text style={s.ticketSub}>Starting from {event.tickets.startingPrice} + fees</Text>
-                </View>
-                <Feather name="external-link" size={20} color="#fff" />
-              </View>
-              <View style={s.tierRow}>
-                {event.tickets.tiers.map((tier, i) => (
-                  <View key={i} style={s.tierBox}>
-                    <Text style={s.tierLabel}>{tier.label}</Text>
-                    <Text style={s.tierPrice}>{tier.price}</Text>
-                  </View>
-                ))}
-              </View>
-              <TouchableOpacity
-                style={s.ticketBtn}
-                activeOpacity={0.8}
-                onPress={() => Linking.openURL(event.tickets.url)}
-              >
-                <Text style={s.ticketBtnText}>View on Ticketmaster</Text>
-              </TouchableOpacity>
-            </LinearGradient>
-
-            {/* Most Popular Song */}
-            <Card>
-              <View style={s.songRow}>
-                <View style={s.songIcon}>
-                  <Feather name="music" size={22} color="#9810FA" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.songLabel}>Most popular song</Text>
-                  <Text style={s.songTitle}>{event.popularSong.title}</Text>
-                  <TouchableOpacity onPress={() => Linking.openURL(event.popularSong.searchUrl)}>
-                    <Text style={s.songAlbum}>{event.popularSong.album}</Text>
-                  </TouchableOpacity>
-                </View>
-                <TouchableOpacity style={s.voteBtn} activeOpacity={0.8}>
-                  <Text style={s.voteBtnText}>Vote</Text>
-                </TouchableOpacity>
-              </View>
-            </Card>
-
-            {/* People You May Know */}
-            <Card>
-              <Text style={s.cardTitle}>People you may know</Text>
-              <FlatList
-                data={MUTUAL_CONNECTIONS}
-                keyExtractor={(item) => item.id}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ gap: 16 }}
-                renderItem={({ item }) => <MutualPersonCard person={item} />}
-              />
-            </Card>
-
-            {/* Who's Going */}
-            <Card>
-              <View style={s.goingHeader}>
-                <Text style={s.cardTitle}>Who's Going</Text>
-                <Text style={s.goingCount}>{event.attendeeCount.toLocaleString()} attendees</Text>
-              </View>
-              <View style={s.attendeeGrid}>
-                {ATTENDEES.map((a) => (
-                  <AttendeeCard key={a.id} attendee={a} />
-                ))}
-              </View>
-              <TouchableOpacity style={s.seeAllBtn} activeOpacity={0.7}>
-                <Text style={s.seeAllText}>See all attendees</Text>
-              </TouchableOpacity>
-            </Card>
-
-            {/* Group Chats */}
-            <Card style={{ marginBottom: 0 }}>
-              <View style={s.groupHeader}>
-                <Feather name="message-circle" size={18} color="#9810FA" />
-                <Text style={[s.cardTitle, { marginBottom: 0 }]}>Group Chats</Text>
-              </View>
-              <Text style={s.groupSubtext}>Connect with other fans attending the event</Text>
-              {GROUP_CHATS.map((group) => (
-                <GroupChatRow
-                  key={group.id}
-                  group={group}
-                  onPress={() => navigation.navigate('GroupChat', { groupId: group.id })}
-                />
-              ))}
-            </Card>
+        {/* Banner */}
+        <View style={s.banner}>
+          <Image source={{ uri: event.bannerImage }} style={StyleSheet.absoluteFill} />
+          <LinearGradient
+            colors={['rgba(0,0,0,0)', 'rgba(115,0,255,0.5)', 'rgba(115,0,255,0.85)']}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={s.bannerContent}>
+            <Text style={s.bannerTitle}>{event.title}</Text>
+            <Text style={s.bannerVenue}>@ {event.venue}</Text>
           </View>
         </View>
+
+        {/* Date & time */}
+        <View style={s.dateRow}>
+          <View style={s.dateItem}>
+            <Feather name="calendar" size={18} color="rgba(255,255,255,0.8)" />
+            <Text style={s.dateText}>{event.date}</Text>
+          </View>
+          <View style={s.dateItem}>
+            <Feather name="clock" size={18} color="rgba(255,255,255,0.8)" />
+            <Text style={s.dateText}>{event.time}</Text>
+          </View>
+        </View>
+
+        {/* Tags */}
+        <View style={s.tagsRow}>
+          {event.tags.map((tag, i) => (
+            <TagBadge key={i} label={tag.label} variant={tag.variant} />
+          ))}
+        </View>
+
+        <View style={s.body}>
+          {/* Friends Going */}
+          <Card>
+            <View style={s.friendsGoingHeader}>
+              <Feather name="heart" size={16} color="#9810FA" />
+              <Text style={s.cardTitle}>Friends Going</Text>
+            </View>
+            <View style={s.friendsGoingList}>
+              {FRIENDS_GOING.map((friend) => (
+                <View key={friend.id} style={s.friendGoingRow}>
+                  <Avatar uri={friend.avatar} name={friend.name} size={40} style={{ borderWidth: 0 }} />
+                  <Text style={s.friendGoingName}>{friend.name}</Text>
+                  <View style={s.friendGoingBadge}>
+                    <Text style={s.friendGoingBadgeText}>Going</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </Card>
+
+          {/* Ticketmaster */}
+          <LinearGradient colors={['#026cdf', '#0054a6']} style={s.ticketCard}>
+            <View style={s.ticketHeader}>
+              <View>
+                <Text style={s.ticketTitle}>Get Your Tickets</Text>
+                <Text style={s.ticketSub}>Starting from {event.tickets.startingPrice} + fees</Text>
+              </View>
+              <Feather name="external-link" size={20} color="#fff" />
+            </View>
+            <View style={s.tierRow}>
+              {event.tickets.tiers.map((tier, i) => (
+                <View key={i} style={s.tierBox}>
+                  <Text style={s.tierLabel}>{tier.label}</Text>
+                  <Text style={s.tierPrice}>{tier.price}</Text>
+                </View>
+              ))}
+            </View>
+            <TouchableOpacity
+              style={s.ticketBtn}
+              activeOpacity={0.8}
+              onPress={() => Linking.openURL(event.tickets.url)}
+            >
+              <Text style={s.ticketBtnText}>View on Ticketmaster</Text>
+            </TouchableOpacity>
+          </LinearGradient>
+
+          {/* Most Popular Song */}
+          <Card>
+            <View style={s.songRow}>
+              <View style={s.songIcon}>
+                <Feather name="music" size={22} color="#9810FA" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.songLabel}>Most popular song</Text>
+                <Text style={s.songTitle}>{event.popularSong.title}</Text>
+                <TouchableOpacity onPress={() => Linking.openURL(event.popularSong.searchUrl)}>
+                  <Text style={s.songAlbum}>{event.popularSong.album}</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity style={s.voteBtn} activeOpacity={0.8}>
+                <Text style={s.voteBtnText}>Vote</Text>
+              </TouchableOpacity>
+            </View>
+          </Card>
+
+          {/* Attendees You May Know */}
+          <Card>
+            <Text style={s.cardTitle}>Attendees you may know</Text>
+            <FlatList
+              data={MUTUAL_CONNECTIONS}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 16 }}
+              renderItem={({ item }) => <MutualPersonCard person={item} />}
+            />
+          </Card>
+
+          {/* Who's Going */}
+          <Card>
+            <View style={s.goingHeader}>
+              <Text style={s.goingTitle}>Who's Going</Text>
+              <Text style={s.goingCount}>{event.attendeeCount.toLocaleString()} attendees</Text>
+            </View>
+            <View style={s.attendeeGrid}>
+              {ATTENDEES.map((a) => (
+                <AttendeeCard
+                  key={a.id}
+                  attendee={a}
+                  onPress={a.userId ? () => navigation.navigate('UserProfile', { userId: a.userId }) : undefined}
+                />
+              ))}
+            </View>
+            <TouchableOpacity style={s.seeAllBtn} activeOpacity={0.7}>
+              <Text style={s.seeAllText}>See all attendees</Text>
+            </TouchableOpacity>
+          </Card>
+
+          {/* Group Chats */}
+          <Card style={{ marginBottom: 0 }}>
+            <View style={s.groupHeader}>
+              <Feather name="message-circle" size={18} color="#9810FA" />
+              <Text style={[s.cardTitle, { marginBottom: 0 }]}>Group Chats</Text>
+            </View>
+            <Text style={s.groupSubtext}>Connect with other fans attending the event</Text>
+            {GROUP_CHATS.map((group) => (
+              <GroupChatRow
+                key={group.id}
+                group={group}
+                onPress={() => navigation.navigate('GroupChat', { groupId: group.id })}
+              />
+            ))}
+          </Card>
+        </View>
       </ScrollView>
+
+      {/* Floating Mark Event button */}
+      <View style={[s.floatingBtnWrap, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+        <TouchableOpacity
+          style={[s.floatingBtn, rsvpStatus && s.floatingBtnMarked]}
+          activeOpacity={0.85}
+          onPress={() => setMarkModalVisible(true)}
+        >
+          <Feather name={rsvpStatus ? 'check-circle' : 'plus-circle'} size={18} color="#fff" />
+          <Text style={s.floatingBtnText}>
+            {rsvpStatus === 'going' ? 'Going' : rsvpStatus === 'maybe' ? 'Maybe' : 'Mark Event'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* RSVP Modal */}
+      <Modal visible={markModalVisible} transparent animationType="fade" onRequestClose={() => setMarkModalVisible(false)}>
+        <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={() => setMarkModalVisible(false)}>
+          <View style={s.modalCard} onStartShouldSetResponder={() => true}>
+            <Text style={s.modalTitle}>Mark Event</Text>
+            <Text style={s.modalSub}>Let people know you're attending</Text>
+
+            <View style={s.rsvpOptions}>
+              <TouchableOpacity
+                style={[s.rsvpOption, rsvpStatus === 'going' && s.rsvpOptionActive]}
+                activeOpacity={0.7}
+                onPress={() => setRsvpStatus('going')}
+              >
+                <View style={[s.rsvpIconCircle, rsvpStatus === 'going' && s.rsvpIconCircleActive]}>
+                  <Feather name="check" size={20} color={rsvpStatus === 'going' ? '#fff' : '#7300ff'} />
+                </View>
+                <Text style={[s.rsvpLabel, rsvpStatus === 'going' && s.rsvpLabelActive]}>Going</Text>
+                <Text style={s.rsvpDesc}>I'll be there</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[s.rsvpOption, rsvpStatus === 'maybe' && s.rsvpOptionMaybeActive]}
+                activeOpacity={0.7}
+                onPress={() => setRsvpStatus('maybe')}
+              >
+                <View style={[s.rsvpIconCircle, rsvpStatus === 'maybe' && s.rsvpIconCircleMaybe]}>
+                  <Feather name="help-circle" size={20} color={rsvpStatus === 'maybe' ? '#fff' : '#f59e0b'} />
+                </View>
+                <Text style={[s.rsvpLabel, rsvpStatus === 'maybe' && s.rsvpLabelMaybe]}>Maybe</Text>
+                <Text style={s.rsvpDesc}>Not sure yet</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={s.publicRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.publicLabel}>Show on public list</Text>
+                <Text style={s.publicDesc}>Your name will be visible to other attendees</Text>
+              </View>
+              <Switch
+                value={isPublic}
+                onValueChange={setIsPublic}
+                trackColor={{ false: '#e5e7eb', true: '#7300ff' }}
+                thumbColor="#fff"
+              />
+            </View>
+
+            <View style={s.modalActions}>
+              {rsvpStatus && (
+                <TouchableOpacity
+                  style={s.removeBtn}
+                  activeOpacity={0.7}
+                  onPress={() => { setRsvpStatus(null); setMarkModalVisible(false); }}
+                >
+                  <Text style={s.removeBtnText}>Remove RSVP</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={[s.confirmBtn, !rsvpStatus && s.confirmBtnDisabled]}
+                activeOpacity={rsvpStatus ? 0.85 : 1}
+                onPress={rsvpStatus ? handleConfirmRsvp : undefined}
+              >
+                <Text style={s.confirmBtnText}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -377,16 +496,6 @@ const s = StyleSheet.create({
     padding: 8,
   },
 
-  // Outer card
-  outerCard: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    backgroundColor: 'rgba(249,250,251,0.92)',
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-
-  // Banner
   banner: {
     height: 320,
     overflow: 'hidden',
@@ -410,18 +519,16 @@ const s = StyleSheet.create({
     marginTop: 4,
   },
 
-  // Body
   body: {
     padding: CARD_HORIZONTAL,
-    backgroundColor: '#f9fafb',
   },
 
-  // Date row
   dateRow: {
     flexDirection: 'row',
     gap: 20,
     marginBottom: 14,
-    paddingTop: 8,
+    paddingTop: 12,
+    paddingHorizontal: CARD_HORIZONTAL,
   },
   dateItem: {
     flexDirection: 'row',
@@ -431,15 +538,15 @@ const s = StyleSheet.create({
   dateText: {
     fontSize: 17,
     fontFamily: fonts.semiBold,
-    color: '#101828',
+    color: '#fff',
   },
 
-  // Tags
   tagsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
     marginBottom: 16,
+    paddingHorizontal: CARD_HORIZONTAL,
   },
   tagBadge: {
     paddingHorizontal: 12,
@@ -580,8 +687,8 @@ const s = StyleSheet.create({
   },
   mutualName: {
     color: '#101828',
-    fontSize: 12,
-    fontFamily: fonts.medium,
+    fontSize: 13,
+    fontFamily: fonts.semiBold,
     marginTop: 6,
     textAlign: 'center',
   },
@@ -597,11 +704,16 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 8,
+  },
+  goingTitle: {
+    fontSize: 14,
+    fontFamily: fonts.semiBold,
+    color: '#4a5565',
   },
   goingCount: {
-    color: '#4a5565',
-    fontSize: 13,
+    color: '#9ca3af',
+    fontSize: 12,
     fontFamily: fonts.regular,
   },
   attendeeGrid: {
@@ -645,12 +757,12 @@ const s = StyleSheet.create({
   },
   attendeeName: {
     color: '#101828',
-    fontSize: 13,
-    fontFamily: fonts.medium,
+    fontSize: 15,
+    fontFamily: fonts.semiBold,
   },
   attendeeNameCompact: {
     color: '#101828',
-    fontSize: 13,
+    fontSize: 15,
     fontFamily: fonts.medium,
     flex: 1,
   },
@@ -665,6 +777,39 @@ const s = StyleSheet.create({
     fontSize: 11,
     fontFamily: fonts.regular,
   },
+  // Friends Going
+  friendsGoingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  friendsGoingList: {
+    gap: 10,
+  },
+  friendGoingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  friendGoingName: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: fonts.semiBold,
+    color: '#101828',
+  },
+  friendGoingBadge: {
+    backgroundColor: '#e6f9f5',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  friendGoingBadgeText: {
+    fontSize: 11,
+    fontFamily: fonts.semiBold,
+    color: '#00ac9b',
+  },
+
   seeAllBtn: {
     marginTop: 14,
     paddingVertical: 10,
@@ -744,5 +889,169 @@ const s = StyleSheet.create({
     fontSize: 12,
     fontFamily: fonts.medium,
     color: '#4a5565',
+  },
+
+  // Floating button
+  floatingBtnWrap: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    backgroundColor: 'rgba(115,0,255,0.9)',
+  },
+  floatingBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#7300ff',
+    paddingVertical: 16,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  floatingBtnMarked: {
+    backgroundColor: '#00ac9b',
+    borderColor: 'rgba(255,255,255,0.4)',
+  },
+  floatingBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: fonts.semiBold,
+  },
+
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontFamily: fonts.semiBold,
+    color: '#101828',
+    marginBottom: 4,
+  },
+  modalSub: {
+    fontSize: 14,
+    fontFamily: fonts.regular,
+    color: '#4a5565',
+    marginBottom: 24,
+  },
+  rsvpOptions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  rsvpOption: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 20,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    backgroundColor: '#f9fafb',
+    gap: 8,
+  },
+  rsvpOptionActive: {
+    borderColor: '#7300ff',
+    backgroundColor: '#f8f3ff',
+  },
+  rsvpOptionMaybeActive: {
+    borderColor: '#f59e0b',
+    backgroundColor: '#fffbeb',
+  },
+  rsvpIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#f3e8ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rsvpIconCircleActive: {
+    backgroundColor: '#7300ff',
+  },
+  rsvpIconCircleMaybe: {
+    backgroundColor: '#f59e0b',
+  },
+  rsvpLabel: {
+    fontSize: 16,
+    fontFamily: fonts.semiBold,
+    color: '#101828',
+  },
+  rsvpLabelActive: {
+    color: '#7300ff',
+  },
+  rsvpLabelMaybe: {
+    color: '#f59e0b',
+  },
+  rsvpDesc: {
+    fontSize: 12,
+    fontFamily: fonts.regular,
+    color: '#4a5565',
+  },
+
+  publicRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    marginBottom: 20,
+    gap: 12,
+  },
+  publicLabel: {
+    fontSize: 15,
+    fontFamily: fonts.medium,
+    color: '#101828',
+    marginBottom: 2,
+  },
+  publicDesc: {
+    fontSize: 12,
+    fontFamily: fonts.regular,
+    color: '#4a5565',
+  },
+
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  removeBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#ef4444',
+  },
+  removeBtnText: {
+    fontSize: 15,
+    fontFamily: fonts.semiBold,
+    color: '#ef4444',
+  },
+  confirmBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    backgroundColor: '#7300ff',
+  },
+  confirmBtnDisabled: {
+    backgroundColor: '#d1d5db',
+  },
+  confirmBtnText: {
+    fontSize: 15,
+    fontFamily: fonts.semiBold,
+    color: '#fff',
   },
 });

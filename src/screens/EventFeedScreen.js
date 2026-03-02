@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -22,7 +22,6 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = SCREEN_WIDTH * 0.6;
 const RECENT_CARD_WIDTH = SCREEN_WIDTH * 0.58;
 
-const categories = ['All', 'Music', 'Art', 'Food', 'Sports', 'Networking', 'Technology'];
 
 const STARRED_EVENT_IDS = ['1', '3'];
 
@@ -168,12 +167,6 @@ function EventCard({ event, onPress, isStarred }) {
 
 export default function EventFeedScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const [selectedCategory, setSelectedCategory] = useState('All');
-
-  const filteredEvents =
-    selectedCategory === 'All'
-      ? mockEvents
-      : mockEvents.filter((e) => e.category === selectedCategory);
 
   return (
     <View style={styles.root}>
@@ -233,34 +226,13 @@ export default function EventFeedScreen({ navigation }) {
           ))}
         </View>
 
-        {/* Category Filters */}
-        <View style={styles.section}>
-          <View style={styles.filterHeader}>
-            <Feather name="filter" size={18} color="#fff" />
-            <Text style={styles.sectionTitle}>Filter Events</Text>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
-            {categories.map((cat) => (
-              <TouchableOpacity
-                key={cat}
-                style={[styles.categoryPill, selectedCategory === cat && styles.categoryPillActive]}
-                onPress={() => setSelectedCategory(cat)}
-              >
-                <Text style={[styles.categoryText, selectedCategory === cat && styles.categoryTextActive]}>
-                  {cat}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
         {/* Upcoming Events */}
         <View style={styles.section}>
           <Text style={styles.upcomingTitle}>Upcoming Events</Text>
           <Text style={styles.upcomingSub}>Find events happening near you</Text>
         </View>
 
-        {filteredEvents.map((event) => (
+        {mockEvents.slice(0, 3).map((event) => (
           <EventCard
             key={event.id}
             event={event}

@@ -20,7 +20,7 @@ import { fonts } from '../theme/fonts';
 // ---------------------------------------------------------------------------
 
 const PERSON = {
-  name: 'Alex',
+  name: 'Dyllan Krouse',
   location: 'Seattle, WA',
   ageRange: '25-30',
   avatar: null,

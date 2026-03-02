@@ -230,15 +230,7 @@ export default function ProfileScreen({ navigation }) {
           ))}
         </View>
 
-        {/* Action buttons */}
-        <View style={styles.actionRow}>
-          <TouchableOpacity style={styles.addFriendBtn} activeOpacity={0.8}>
-            <Text style={styles.addFriendText}>Add Friend</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.messageBtn} activeOpacity={0.8} onPress={() => navigation.navigate('DirectMessage', { userId: 'alex' })}>
-            <Text style={styles.messageBtnText}>Message</Text>
-          </TouchableOpacity>
-        </View>
+        
 
         <View style={styles.cardBody}>
           {/* UW Section */}

@@ -17,9 +17,78 @@ import { Badge } from '../components/Badge';
 import { fonts } from '../theme/fonts';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const categories = ['All', 'Music', 'Art', 'Food', 'Sports', 'Networking', 'Technology'];
+const categories = ['All', 'UW', 'Music', 'Art', 'Food', 'Sports', 'Networking', 'Technology'];
 
 const STARRED_EVENT_IDS = ['1', '3'];
+
+const UW_EVENTS = [
+  {
+    id: 'uw-1',
+    title: 'IFC Spring Rush 2026',
+    date: '2026-03-15',
+    time: '6:00 PM',
+    location: 'UW Greek Row, Seattle',
+    attendees: 420,
+    category: 'UW',
+    backgroundImage: 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800',
+    uwOnly: true,
+  },
+  {
+    id: 'uw-2',
+    title: 'UW Career Fair — Spring 2026',
+    date: '2026-04-02',
+    time: '10:00 AM',
+    location: 'HUB Ballroom, UW Campus',
+    attendees: 1500,
+    category: 'UW',
+    backgroundImage: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800',
+    uwOnly: true,
+  },
+  {
+    id: 'uw-3',
+    title: 'Tech Industry Networking Night',
+    date: '2026-03-20',
+    time: '5:30 PM',
+    location: 'Paul G. Allen Center, UW',
+    attendees: 280,
+    category: 'UW',
+    backgroundImage: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800',
+    uwOnly: true,
+  },
+  {
+    id: 'uw-4',
+    title: 'Prof. Amy Zhang — AI Ethics Talk',
+    date: '2026-03-25',
+    time: '3:00 PM',
+    location: 'Kane Hall, UW Campus',
+    attendees: 350,
+    category: 'UW',
+    backgroundImage: 'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800',
+    uwOnly: true,
+  },
+  {
+    id: 'uw-5',
+    title: 'Dubstech General Meeting',
+    date: '2026-03-18',
+    time: '6:30 PM',
+    location: 'Sieg Hall 134, UW',
+    attendees: 95,
+    category: 'UW',
+    backgroundImage: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800',
+    uwOnly: true,
+  },
+  {
+    id: 'uw-6',
+    title: 'HuskyHacks 2026',
+    date: '2026-04-12',
+    time: '9:00 AM',
+    location: 'HUB, UW Campus',
+    attendees: 600,
+    category: 'UW',
+    backgroundImage: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800',
+    uwOnly: true,
+  },
+];
 
 function formatDate(dateString) {
   const date = new Date(dateString);
@@ -34,7 +103,15 @@ function LargeEventCard({ event, onPress, isStarred }) {
 
       <View style={s.eventCardContent}>
         <View style={s.eventCardTopRow}>
-          <Badge label={event.category} />
+          <View style={s.badgeRow}>
+            <Badge label={event.category} />
+            {event.uwOnly && (
+              <View style={s.uwOnlyChip}>
+                <Feather name="check-circle" size={11} color="#7300ff" />
+                <Text style={s.uwOnlyText}>Verified UW Students</Text>
+              </View>
+            )}
+          </View>
           {isStarred && (
             <Ionicons name="star" size={16} color="#fbbf24" />
           )}
@@ -66,10 +143,11 @@ export default function EventsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const [selectedCategory, setSelectedCategory] = useState('All');
 
+  const allEvents = [...mockEvents, ...UW_EVENTS];
   const filteredEvents =
     selectedCategory === 'All'
-      ? mockEvents
-      : mockEvents.filter((e) => e.category === selectedCategory);
+      ? allEvents
+      : allEvents.filter((e) => e.category === selectedCategory);
 
   return (
     <View style={s.root}>
@@ -214,7 +292,30 @@ const s = StyleSheet.create({
   eventCardTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    flex: 1,
+    marginRight: 8,
+  },
+  uwOnlyChip: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFFFE0',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#7300ff',
+  },
+  uwOnlyText: {
+    fontSize: 10,
+    fontFamily: fonts.semiBold,
+    color: '#7300ff',
   },
   eventCardTitle: {
     color: '#fff',
