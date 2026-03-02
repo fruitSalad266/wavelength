@@ -342,50 +342,7 @@ export default function ProfileScreen({ navigation }) {
             </View>
           </Card>
 
-          {/* Mutual Friends */}
-          <Card style={{ marginBottom: 0 }}>
-            <View style={styles.mutualHeader}>
-              <Feather name="users" size={16} color="#7300ff" />
-              <Text style={styles.cardTitle}>{mutualFriends.length} Mutual Friends</Text>
-            </View>
-
-            {/* Avatar row (collapsed) */}
-            {!friendsExpanded && (
-              <TouchableOpacity
-                style={styles.friendAvatarsRow}
-                activeOpacity={0.8}
-                onPress={() => setFriendsExpanded(true)}
-              >
-                {visibleFriends.map((friend, idx) => (
-                  <View key={friend.id} style={{ marginLeft: idx > 0 ? -10 : 0, zIndex: PREVIEW_COUNT - idx }}>
-                    <Avatar uri={friend.avatar} name={friend.name} size={42} style={{ borderWidth: 2, borderColor: '#fff' }} />
-                  </View>
-                ))}
-                {hasMore && (
-                  <View style={[styles.moreCircle, { marginLeft: -10 }]}>
-                    <Text style={styles.moreCircleText}>+{mutualFriends.length - PREVIEW_COUNT}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            )}
-
-            {/* Expanded list */}
-            {friendsExpanded && (
-              <View style={styles.friendExpandedList}>
-                {mutualFriends.map((friend) => (
-                  <FriendExpandedRow key={friend.id} friend={friend} />
-                ))}
-                <TouchableOpacity
-                  style={styles.collapseFriendsBtn}
-                  activeOpacity={0.7}
-                  onPress={() => setFriendsExpanded(false)}
-                >
-                  <Feather name="chevron-up" size={16} color="#7300ff" />
-                  <Text style={styles.collapseFriendsText}>Show less</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </Card>
+          
         </View>
       </ScrollView>
     </View>
