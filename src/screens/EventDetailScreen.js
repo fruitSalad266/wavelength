@@ -272,17 +272,13 @@ export default function EventDetailScreen({ route, navigation }) {
           {/* Friends Going */}
           <Card>
             <View style={s.friendsGoingHeader}>
-              <Feather name="heart" size={16} color="#9810FA" />
-              <Text style={s.cardTitle}>Friends Going</Text>
+              <Feather name="heart" size={14} color="#9810FA" />
+              <Text style={s.friendsGoingLabel}>{FRIENDS_GOING.length} Friends Going</Text>
             </View>
-            <View style={s.friendsGoingList}>
-              {FRIENDS_GOING.map((friend) => (
-                <View key={friend.id} style={s.friendGoingRow}>
-                  <Avatar uri={friend.avatar} name={friend.name} size={40} style={{ borderWidth: 0 }} />
-                  <Text style={s.friendGoingName}>{friend.name}</Text>
-                  <View style={s.friendGoingBadge}>
-                    <Text style={s.friendGoingBadgeText}>Going</Text>
-                  </View>
+            <View style={s.friendsGoingAvatars}>
+              {FRIENDS_GOING.map((friend, idx) => (
+                <View key={friend.id} style={{ marginLeft: idx > 0 ? -10 : 0, zIndex: FRIENDS_GOING.length - idx }}>
+                  <Avatar uri={friend.avatar} name={friend.name} size={38} style={{ borderWidth: 2, borderColor: '#fff' }} />
                 </View>
               ))}
             </View>
@@ -353,7 +349,7 @@ export default function EventDetailScreen({ route, navigation }) {
               <Text style={s.goingCount}>{event.attendeeCount.toLocaleString()} attendees</Text>
             </View>
             <View style={s.attendeeGrid}>
-              {ATTENDEES.map((a) => (
+              {ATTENDEES.slice(0, 5).map((a) => (
                 <AttendeeCard
                   key={a.id}
                   attendee={a}
@@ -361,7 +357,11 @@ export default function EventDetailScreen({ route, navigation }) {
                 />
               ))}
             </View>
-            <TouchableOpacity style={s.seeAllBtn} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={s.seeAllBtn}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('AllAttendees')}
+            >
               <Text style={s.seeAllText}>See all attendees</Text>
             </TouchableOpacity>
           </Card>
@@ -781,33 +781,17 @@ const s = StyleSheet.create({
   friendsGoingHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
+    gap: 6,
+    marginBottom: 10,
   },
-  friendsGoingList: {
-    gap: 10,
-  },
-  friendGoingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  friendGoingName: {
-    flex: 1,
-    fontSize: 15,
+  friendsGoingLabel: {
+    fontSize: 14,
     fontFamily: fonts.semiBold,
     color: '#101828',
   },
-  friendGoingBadge: {
-    backgroundColor: '#e6f9f5',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  friendGoingBadgeText: {
-    fontSize: 11,
-    fontFamily: fonts.semiBold,
-    color: '#00ac9b',
+  friendsGoingAvatars: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 
   seeAllBtn: {

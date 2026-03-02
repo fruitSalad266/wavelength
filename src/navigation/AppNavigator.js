@@ -18,6 +18,7 @@ import GroupChatScreen from '../screens/GroupChatScreen';
 import DirectMessageScreen from '../screens/DirectMessageScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
+import AllAttendeesScreen from '../screens/AllAttendeesScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -104,6 +105,7 @@ export default function AppNavigator() {
         <Stack.Screen name="DirectMessage" component={DirectMessageScreen} />
         <Stack.Screen name="Notifications" component={NotificationsScreen} />
         <Stack.Screen name="UserProfile" component={UserProfileScreen} />
+        <Stack.Screen name="AllAttendees" component={AllAttendeesScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
