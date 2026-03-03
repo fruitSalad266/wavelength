@@ -15,6 +15,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import EventDetailScreen from '../screens/EventDetailScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import GroupChatScreen from '../screens/GroupChatScreen';
+import MatchGroupChatScreen from '../screens/MatchGroupChatScreen';
 import DirectMessageScreen from '../screens/DirectMessageScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
@@ -102,6 +103,7 @@ export default function AppNavigator() {
         <Stack.Screen name="EventDetail" component={EventDetailScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen name="GroupChat" component={GroupChatScreen} />
+        <Stack.Screen name="MatchGroupChat" component={MatchGroupChatScreen} />
         <Stack.Screen name="DirectMessage" component={DirectMessageScreen} />
         <Stack.Screen name="Notifications" component={NotificationsScreen} />
         <Stack.Screen name="UserProfile" component={UserProfileScreen} />

@@ -58,15 +58,88 @@ const EVENT = {
 };
 
 const ATTENDEES = [
-  { id: 'dyllan', name: 'Dyllan Krouse', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', isGoodMatch: true, status: 'going', userId: 'dyllan' },
-  { id: '1', name: 'Sarah Mitchell', avatar: 'https://images.unsplash.com/photo-1575454211631-f5aba648b97d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', isGoodMatch: true, status: 'going' },
-  { id: '2', name: 'Michael Chen', avatar: 'https://images.unsplash.com/photo-1724602048497-ecb722b13034?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', isGoodMatch: false, status: 'going' },
-  { id: '3', name: 'Emma Rodriguez', avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', isGoodMatch: true, status: 'going' },
-  { id: '4', name: 'James Park', avatar: 'https://images.unsplash.com/photo-1760574740271-55e6683afe76?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', isGoodMatch: false, status: 'maybe' },
-  { id: '5', name: 'Lisa Anderson', avatar: 'https://images.unsplash.com/photo-1643816831186-b2427a8f9f2d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', isGoodMatch: true, status: 'going' },
-  { id: '6', name: 'David Thompson', avatar: 'https://images.unsplash.com/photo-1758686253859-8ef7e940096e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', isGoodMatch: false, status: 'going' },
-  { id: '13', name: 'Olivia Foster', avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', isGoodMatch: false, status: 'maybe' },
-  { id: '14', name: 'Tyler Nguyen', avatar: 'https://images.unsplash.com/photo-1724602048497-ecb722b13034?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200', isGoodMatch: false, status: 'maybe' },
+  {
+    id: 'dyllan',
+    name: 'Dyllan Krouse',
+    avatar:
+      'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200',
+    isGoodMatch: true,
+    status: 'going',
+    userId: 'dyllan',
+    matchScore: 96,
+  },
+  {
+    id: '1',
+    name: 'Sarah Mitchell',
+    avatar:
+      'https://images.unsplash.com/photo-1575454211631-f5aba648b97d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200',
+    isGoodMatch: true,
+    status: 'going',
+    matchScore: 94,
+  },
+  {
+    id: '2',
+    name: 'Michael Chen',
+    avatar:
+      'https://images.unsplash.com/photo-1724602048497-ecb722b13034?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200',
+    isGoodMatch: false,
+    status: 'going',
+    matchScore: 88,
+  },
+  {
+    id: '3',
+    name: 'Emma Rodriguez',
+    avatar:
+      'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200',
+    isGoodMatch: true,
+    status: 'going',
+    matchScore: 90,
+  },
+  {
+    id: '4',
+    name: 'James Park',
+    avatar:
+      'https://images.unsplash.com/photo-1760574740271-55e6683afe76?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200',
+    isGoodMatch: false,
+    status: 'maybe',
+    matchScore: 72,
+  },
+  {
+    id: '5',
+    name: 'Lisa Anderson',
+    avatar:
+      'https://images.unsplash.com/photo-1643816831186-b2427a8f9f2d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200',
+    isGoodMatch: true,
+    status: 'going',
+    matchScore: 86,
+  },
+  {
+    id: '6',
+    name: 'David Thompson',
+    avatar:
+      'https://images.unsplash.com/photo-1758686253859-8ef7e940096e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200',
+    isGoodMatch: false,
+    status: 'going',
+    matchScore: 80,
+  },
+  {
+    id: '13',
+    name: 'Olivia Foster',
+    avatar:
+      'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200',
+    isGoodMatch: false,
+    status: 'maybe',
+    matchScore: 75,
+  },
+  {
+    id: '14',
+    name: 'Tyler Nguyen',
+    avatar:
+      'https://images.unsplash.com/photo-1724602048497-ecb722b13034?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200',
+    isGoodMatch: false,
+    status: 'maybe',
+    matchScore: 70,
+  },
 ];
 
 const MUTUAL_CONNECTIONS = [
@@ -209,6 +282,12 @@ export default function EventDetailScreen({ route, navigation }) {
 
   const handleConfirmRsvp = () => {
     setMarkModalVisible(false);
+  };
+
+  const getMatchedAttendees = () => {
+    // Take top 3–4 highest match scores to form a small squad
+    const sorted = ATTENDEES.slice().sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
+    return sorted.slice(0, 4);
   };
 
   return (
@@ -365,6 +444,32 @@ export default function EventDetailScreen({ route, navigation }) {
               <Text style={s.seeAllText}>See all attendees</Text>
             </TouchableOpacity>
           </Card>
+
+          {/* Match-based squad CTA */}
+          <TouchableOpacity
+            style={s.squadBtn}
+            activeOpacity={0.9}
+            onPress={() =>
+              navigation.navigate('MatchGroupChat', {
+                eventTitle: event.title,
+                matchedAttendees: getMatchedAttendees(),
+              })
+            }
+          >
+            <LinearGradient
+              colors={['#7300ff', '#00ac9b']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={s.squadBtnGradient}
+            >
+              <Feather name="users" size={18} color="#fff" />
+              <View style={{ flex: 1 }}>
+                <Text style={s.squadTitle}>Find My Squad</Text>
+                <Text style={s.squadSubtitle}>Chat with your top matches for this show</Text>
+              </View>
+              <Feather name="chevron-right" size={18} color="rgba(255,255,255,0.9)" />
+            </LinearGradient>
+          </TouchableOpacity>
 
           {/* Group Chats */}
           <Card style={{ marginBottom: 0 }}>
@@ -804,6 +909,30 @@ const s = StyleSheet.create({
     color: '#9810FA',
     fontSize: 14,
     fontFamily: fonts.medium,
+  },
+
+  // Match-based squad button
+  squadBtn: {
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  squadBtnGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+  },
+  squadTitle: {
+    color: '#fff',
+    fontSize: 15,
+    fontFamily: fonts.semiBold,
+  },
+  squadSubtitle: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 12,
+    fontFamily: fonts.regular,
   },
 
   // Group chats
