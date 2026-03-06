@@ -22,5 +22,6 @@ alwaysApply: true
 
 ## Conventions
 
-- Screens live in `src/screens/`, navigation in `src/navigation/`, shared UI in `src/components/`, theme in `src/theme/`.
+- Screens live in `src/screens/`, grouped by feature: `events/`, `chat/`, `profile/` (and root for e.g. `NotificationsScreen`). Navigation in `src/navigation/`, shared UI in `src/components/`, theme in `src/theme/` (fonts + colors), mock data in `src/data/`.
 - Use `StyleSheet.create` for styles; use `useSafeAreaInsets()` for top/bottom padding so content clears notches and tab bar.
+- Prefer centralized mock data in `src/data/*.js` over inline constants in screens; use `src/theme/colors.js` for shared colors.

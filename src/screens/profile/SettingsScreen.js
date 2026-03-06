@@ -14,7 +14,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fonts } from '../theme/fonts';
+import { fonts } from '../../theme/fonts';
 
 // ---------------------------------------------------------------------------
 // Reusable sub-components

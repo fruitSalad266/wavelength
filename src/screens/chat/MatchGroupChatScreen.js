@@ -12,23 +12,9 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Avatar } from '../components/Avatar';
-import { fonts } from '../theme/fonts';
-
-const MEMBER_META = {
-  'Sarah Mitchell': {
-    major: 'Business Administration',
-    year: 'UW 2025',
-  },
-  'Michael Chen': {
-    major: 'Computer Science',
-    year: 'UW 2026',
-  },
-  'Emma Rodriguez': {
-    major: 'Communications',
-    year: 'UW 2025',
-  },
-};
+import { Avatar } from '../../components/Avatar';
+import { fonts } from '../../theme/fonts';
+import { MEMBER_META, FALLBACK_SQUAD_MEMBERS, buildSquadInitialMessages } from '../../data/mockMatchSquad';
 
 function ChatBubble({ msg, isMe }) {
   return (
@@ -63,27 +49,7 @@ export default function MatchGroupChatScreen({ navigation, route }) {
   const eventTitle = route.params?.eventTitle || 'This Event';
   const matchedAttendees = route.params?.matchedAttendees || [];
 
-  const fallbackMembers = [
-    {
-      id: '1',
-      name: 'Sarah Mitchell',
-      avatar:
-        'https://images.unsplash.com/photo-1575454211631-f5aba648b97d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200',
-    },
-    {
-      id: '2',
-      name: 'Michael Chen',
-      avatar:
-        'https://images.unsplash.com/photo-1724602048497-ecb722b13034?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200',
-    },
-    {
-      id: '3',
-      name: 'Emma Rodriguez',
-      avatar:
-        'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200',
-    },
-  ];
-
+  const fallbackMembers = FALLBACK_SQUAD_MEMBERS;
   const rawMembers = matchedAttendees.length > 0 ? matchedAttendees : fallbackMembers;
 
   const members = rawMembers.map((m) => {
@@ -109,7 +75,7 @@ export default function MatchGroupChatScreen({ navigation, route }) {
   const commonMajorBadges = buildCommonBadges(majors);
   const commonYearBadges = buildCommonBadges(years);
 
-  const INITIAL_MESSAGES = [
+  const _unusedInitialMessages = [
     {
       id: '1',
       senderId: members[0]?.id || '1',
@@ -144,7 +110,8 @@ export default function MatchGroupChatScreen({ navigation, route }) {
     },
   ];
 
-  const [messages, setMessages] = useState(INITIAL_MESSAGES);
+  const initialMsgs = buildSquadInitialMessages(members, fallbackMembers);
+  const [messages, setMessages] = useState(initialMsgs);
   const [input, setInput] = useState('');
 
   const handleSend = () => {
