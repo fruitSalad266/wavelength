@@ -46,13 +46,9 @@ function HomeTabs() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
+        tabBarShowLabel: false,
         tabBarActiveTintColor: '#fff',
         tabBarInactiveTintColor: 'rgba(255,255,255,0.5)',
-        tabBarLabelStyle: {
-          fontFamily: fonts.medium,
-          fontSize: 11,
-          marginTop: -2,
-        },
         tabBarStyle: {
           position: 'absolute',
           borderTopWidth: 0,

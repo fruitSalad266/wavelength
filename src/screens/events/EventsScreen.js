@@ -124,7 +124,7 @@ export default function EventsScreen({ navigation }) {
             key={event.id}
             event={event}
             isStarred={STARRED_EVENT_IDS.includes(event.id)}
-            onPress={() => navigation.navigate('EventDetail', { eventId: event.id })}
+            onPress={() => navigation.navigate('EventDetail', { event })}
           />
         ))}
       </ScrollView>

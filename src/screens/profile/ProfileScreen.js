@@ -88,7 +88,6 @@ export default function ProfileScreen({ navigation }) {
               onPress={() => navigation.navigate('Settings')}
             >
               <Feather name="settings" size={16} color="rgba(255,255,255,0.9)" />
-              <Text style={styles.settingsBtnText}>Settings</Text>
             </TouchableOpacity>
             
           </View>
@@ -116,9 +115,12 @@ export default function ProfileScreen({ navigation }) {
         {/* Profile picture */}
         <View style={styles.avatarContainer}>
           <View style={styles.avatarOuter}>
-            <View style={styles.avatarPlaceholder}>
-              <Feather name="user" size={48} color="#7300ff" />
-            </View>
+            <Avatar
+              uri="https://images.unsplash.com/photo-1544723795-3fb6469f5b39?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400"
+              name="Alex"
+              size={112}
+              style={{ borderWidth: 0 }}
+            />
           </View>
         </View>
 

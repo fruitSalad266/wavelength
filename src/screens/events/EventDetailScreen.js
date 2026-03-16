@@ -17,8 +17,11 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '../../components/Avatar';
 import { Badge } from '../../components/Badge';
+import { ScreenHeader } from '../../components/ScreenHeader';
+import { GradientCard } from '../../components/GradientCard';
 import { fonts } from '../../theme/fonts';
-import { EVENT, ATTENDEES, MUTUAL_CONNECTIONS, FRIENDS_GOING, GROUP_CHATS } from '../../data/mockEventDetail';
+import { colors } from '../../theme/colors';
+import { EVENT as DEFAULT_EVENT_DETAIL, ATTENDEES, MUTUAL_CONNECTIONS, FRIENDS_GOING, GROUP_CHATS } from '../../data/mockEventDetail';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -29,12 +32,12 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 function TagBadge({ label, variant }) {
   const bg =
     variant === 'purple'
-      ? '#7300ff'
+      ? colors.primary
       : variant === 'teal'
-      ? '#00ac9b'
+      ? colors.teal
       : 'rgba(255,255,255,0.9)';
-  const color = variant === 'outline' ? '#101828' : '#fff';
-  const border = variant === 'outline' ? '#e5e7eb' : bg;
+  const color = variant === 'outline' ? colors.text : colors.white;
+  const border = variant === 'outline' ? colors.cardBorder : bg;
 
   return (
     <View style={[s.tagBadge, { backgroundColor: bg, borderColor: border }]}>
@@ -94,7 +97,7 @@ function GroupChatRow({ group, onPress }) {
       activeOpacity={0.7}
       onPress={onPress}
     >
-      <LinearGradient colors={['#7300ff', '#00ac9b']} style={s.groupIcon}>
+      <LinearGradient colors={[colors.primary, colors.teal]} style={s.groupIcon}>
         <Text style={s.groupIconText}>{group.icon}</Text>
       </LinearGradient>
 
@@ -104,7 +107,7 @@ function GroupChatRow({ group, onPress }) {
           {isHighlighted && (
             <Badge
               label="Verified UW Students"
-              style={{ backgroundColor: '#7300ff', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 }}
+              style={{ backgroundColor: colors.primary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 }}
               textStyle={{ fontSize: 9 }}
             />
           )}
@@ -113,7 +116,7 @@ function GroupChatRow({ group, onPress }) {
       </View>
 
       <View style={s.groupMemberRow}>
-        <Feather name="users" size={12} color="#4a5565" />
+        <Feather name="users" size={12} color={colors.textMuted} />
         <Text style={s.groupMemberCount}>{group.memberCount}</Text>
       </View>
     </TouchableOpacity>
@@ -128,13 +131,36 @@ function Card({ children, style }) {
 // Main screen
 // ---------------------------------------------------------------------------
 
+function formatShortDate(dateString) {
+  if (!dateString) return '';
+  const d = new Date(dateString);
+  if (Number.isNaN(d.getTime())) return dateString;
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
 export default function EventDetailScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
   const [isStarred, setIsStarred] = useState(false);
   const [markModalVisible, setMarkModalVisible] = useState(false);
   const [rsvpStatus, setRsvpStatus] = useState(null); // null | 'going' | 'maybe'
   const [isPublic, setIsPublic] = useState(true);
-  const event = EVENT;
+  const passedEvent = route?.params?.event;
+  const event = {
+    ...DEFAULT_EVENT_DETAIL,
+    ...(passedEvent ? {
+      id: passedEvent.id,
+      title: passedEvent.title,
+      venue: passedEvent.location,
+      date: formatShortDate(passedEvent.date),
+      time: passedEvent.time,
+      bannerImage: passedEvent.backgroundImage,
+      detailType: passedEvent.detailType,
+      detailCard: passedEvent.detailCard,
+      tags: Array.isArray(passedEvent.tags) && passedEvent.tags.length > 0 ? passedEvent.tags : DEFAULT_EVENT_DETAIL.tags,
+      tickets: passedEvent.tickets,
+      signup: passedEvent.signup,
+    } : {}),
+  };
 
   const handleConfirmRsvp = () => {
     setMarkModalVisible(false);
@@ -148,24 +174,25 @@ export default function EventDetailScreen({ route, navigation }) {
 
   return (
     <View style={s.root}>
-      <LinearGradient colors={['#7300ff', '#00ac9b']} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={[colors.gradientStart, colors.gradientEnd]} style={StyleSheet.absoluteFill} />
 
-      {/* Header bar */}
-      <View style={[s.header, { paddingTop: insets.top }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={s.backRow}>
-          <Feather name="arrow-left" size={20} color="rgba(255,255,255,0.9)" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setIsStarred((prev) => !prev)}
-          style={s.starBtn}
-        >
-          <Ionicons
-            name={isStarred ? 'star' : 'star-outline'}
-            size={20}
-            color={isStarred ? '#fbbf24' : 'rgba(255,255,255,0.9)'}
-          />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        insets={insets}
+        onBack={() => navigation.goBack()}
+        right={
+          <TouchableOpacity
+            onPress={() => setIsStarred((prev) => !prev)}
+            style={s.starBtn}
+          >
+            <Ionicons
+              name={isStarred ? 'star' : 'star-outline'}
+              size={20}
+              color={isStarred ? colors.star : colors.whiteSoft}
+            />
+          </TouchableOpacity>
+        }
+        showBackground={false}
+      />
 
       <ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}
@@ -219,49 +246,92 @@ export default function EventDetailScreen({ route, navigation }) {
             </View>
           </Card>
 
-          {/* Ticketmaster */}
-          <LinearGradient colors={['#026cdf', '#0054a6']} style={s.ticketCard}>
-            <View style={s.ticketHeader}>
-              <View>
-                <Text style={s.ticketTitle}>Get Your Tickets</Text>
-                <Text style={s.ticketSub}>Starting from {event.tickets.startingPrice} + fees</Text>
-              </View>
-              <Feather name="external-link" size={20} color="#fff" />
-            </View>
-            <View style={s.tierRow}>
-              {event.tickets.tiers.map((tier, i) => (
-                <View key={i} style={s.tierBox}>
-                  <Text style={s.tierLabel}>{tier.label}</Text>
-                  <Text style={s.tierPrice}>{tier.price}</Text>
+          {/* Tickets / Signup (optional) */}
+          {!!event.tickets && !!event.tickets.url && (
+            <GradientCard colors={['#026cdf', '#0054a6']} style={s.ticketCard}>
+              <View style={s.ticketHeader}>
+                <View>
+                  <Text style={s.ticketTitle}>Get Your Tickets</Text>
+                  {!!event.tickets.startingPrice && (
+                    <Text style={s.ticketSub}>Starting from {event.tickets.startingPrice} + fees</Text>
+                  )}
                 </View>
-              ))}
-            </View>
-            <TouchableOpacity
-              style={s.ticketBtn}
-              activeOpacity={0.8}
-              onPress={() => Linking.openURL(event.tickets.url)}
-            >
-              <Text style={s.ticketBtnText}>View on Ticketmaster</Text>
-            </TouchableOpacity>
-          </LinearGradient>
+                <Feather name="external-link" size={20} color="#fff" />
+              </View>
+              {!!event.tickets.tiers && (
+                <View style={s.tierRow}>
+                  {event.tickets.tiers.map((tier, i) => (
+                    <View key={i} style={s.tierBox}>
+                      <Text style={s.tierLabel}>{tier.label}</Text>
+                      <Text style={s.tierPrice}>{tier.price}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+              <TouchableOpacity
+                style={s.ticketBtn}
+                activeOpacity={0.8}
+                onPress={() => Linking.openURL(event.tickets.url)}
+              >
+                <Text style={s.ticketBtnText}>View tickets</Text>
+              </TouchableOpacity>
+            </GradientCard>
+          )}
+
+          {!event.tickets && !!event.signup && !!event.signup.url && (
+            <GradientCard colors={[colors.primary, colors.teal]} style={s.ticketCard}>
+              <View style={s.ticketHeader}>
+                <View>
+                  <Text style={s.ticketTitle}>{event.signup.platform || 'Signup'}</Text>
+                  <Text style={s.ticketSub}>Save your spot for this event</Text>
+                </View>
+                <Feather name="external-link" size={20} color="#fff" />
+              </View>
+              <TouchableOpacity
+                style={s.ticketBtn}
+                activeOpacity={0.8}
+                onPress={() => Linking.openURL(event.signup.url)}
+              >
+                <Text style={s.ticketBtnText}>{event.signup.label || 'Sign up'}</Text>
+              </TouchableOpacity>
+            </GradientCard>
+          )}
 
           {/* Most Popular Song */}
           <Card>
-            <View style={s.songRow}>
-              <View style={s.songIcon}>
-                <Feather name="music" size={22} color="#9810FA" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.songLabel}>Most popular song</Text>
-                <Text style={s.songTitle}>{event.popularSong.title}</Text>
-                <TouchableOpacity onPress={() => Linking.openURL(event.popularSong.searchUrl)}>
-                  <Text style={s.songAlbum}>{event.popularSong.album}</Text>
+            {event.detailCard?.type === 'prompt' ? (
+              <View style={s.songRow}>
+                <View style={s.songIcon}>
+                  <Feather name={event.detailCard.icon || 'message-circle'} size={22} color="#9810FA" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.songLabel}>{event.detailCard.label || 'Conversation starter'}</Text>
+                  <Text style={s.songTitle}>{event.detailCard.title}</Text>
+                  {!!event.detailCard.subtitle && (
+                    <Text style={s.songAlbum}>{event.detailCard.subtitle}</Text>
+                  )}
+                </View>
+                <TouchableOpacity style={s.voteBtn} activeOpacity={0.8}>
+                  <Text style={s.voteBtnText}>{event.detailCard.actionLabel || 'Post'}</Text>
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity style={s.voteBtn} activeOpacity={0.8}>
-                <Text style={s.voteBtnText}>Vote</Text>
-              </TouchableOpacity>
-            </View>
+            ) : (
+              <View style={s.songRow}>
+                <View style={s.songIcon}>
+                  <Feather name="music" size={22} color="#9810FA" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.songLabel}>{event.detailCard?.label || 'Most popular song'}</Text>
+                  <Text style={s.songTitle}>{event.detailCard?.title || event.popularSong?.title}</Text>
+                  <TouchableOpacity onPress={() => event.detailCard?.searchUrl && Linking.openURL(event.detailCard.searchUrl)}>
+                    <Text style={s.songAlbum}>{event.detailCard?.subtitle || event.popularSong?.album}</Text>
+                  </TouchableOpacity>
+                </View>
+                <TouchableOpacity style={s.voteBtn} activeOpacity={0.8}>
+                  <Text style={s.voteBtnText}>{event.detailCard?.actionLabel || 'Vote'}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </Card>
 
           {/* Attendees You May Know */}
@@ -613,24 +683,24 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   songLabel: {
-    color: '#4a5565',
+    color: colors.textMuted,
     fontSize: 13,
     fontFamily: fonts.regular,
     marginBottom: 2,
   },
   songTitle: {
-    color: '#101828',
+    color: colors.text,
     fontSize: 17,
     fontFamily: fonts.semiBold,
   },
   songAlbum: {
-    color: '#4a5565',
+    color: colors.textMuted,
     fontSize: 15,
     fontFamily: fonts.regular,
     textDecorationLine: 'underline',
   },
   voteBtn: {
-    backgroundColor: '#00ac9b',
+    backgroundColor: colors.teal,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 10,
@@ -647,14 +717,14 @@ const s = StyleSheet.create({
     width: 64,
   },
   mutualName: {
-    color: '#101828',
+    color: colors.text,
     fontSize: 13,
     fontFamily: fonts.semiBold,
     marginTop: 6,
     textAlign: 'center',
   },
   mutualCount: {
-    color: '#4a5565',
+    color: colors.textMuted,
     fontSize: 10,
     fontFamily: fonts.regular,
     marginTop: 1,
@@ -670,10 +740,10 @@ const s = StyleSheet.create({
   goingTitle: {
     fontSize: 14,
     fontFamily: fonts.semiBold,
-    color: '#4a5565',
+    color: colors.textMuted,
   },
   goingCount: {
-    color: '#9ca3af',
+    color: colors.textTertiary,
     fontSize: 12,
     fontFamily: fonts.regular,
   },
@@ -689,8 +759,8 @@ const s = StyleSheet.create({
   },
   attendeeCardMatch: {
     borderWidth: 2,
-    borderColor: '#7300ff',
-    backgroundColor: '#f8f3ff',
+    borderColor: colors.primary,
+    backgroundColor: colors.purpleLight,
   },
   attendeeCardCompact: {
     flexDirection: 'row',
@@ -712,7 +782,7 @@ const s = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#00ac9b',
+    backgroundColor: colors.teal,
     alignItems: 'center',
     justifyContent: 'center',
   },

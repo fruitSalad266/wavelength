@@ -13,7 +13,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { mockEvents } from '../../data/mockEvents';
+import { mockEvents, GOING_EVENT_IDS } from '../../data/mockEvents';
 import { STARRED_EVENT_IDS, recentlyHappening, friendsAttending } from '../../data/mockEventFeed';
 import { Avatar } from '../../components/Avatar';
 import { Badge } from '../../components/Badge';
@@ -121,6 +121,7 @@ function EventCard({ event, onPress, isStarred }) {
 
 export default function EventFeedScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const goingEvents = mockEvents.filter((e) => GOING_EVENT_IDS.includes(e.id));
 
   return (
     <View style={styles.root}>
@@ -171,22 +172,54 @@ export default function EventFeedScreen({ navigation }) {
               event={event}
               friends={friends}
               isStarred={STARRED_EVENT_IDS.includes(event.id)}
-              onPress={() => navigation.navigate('EventDetail', { eventId: event.id })}
+              onPress={() => navigation.navigate('EventDetail', { event })}
             />
           ))}
         </View>
+
+        {goingEvents.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>You’re Going</Text>
+            </View>
+            <FlatList
+              data={goingEvents}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalList}
+              renderItem={({ item }) => (
+                <View style={styles.recentCard}>
+                  <Image source={{ uri: item.backgroundImage }} style={styles.recentImage} />
+                  <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)']} style={styles.recentOverlay} />
+                  <View style={styles.recentContent}>
+                    <Text style={styles.recentTitle}>{item.title}</Text>
+                    <Text style={styles.metaTextSmall}>
+                      {formatDate(item.date)} • {item.time}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={StyleSheet.absoluteFill}
+                    activeOpacity={0.85}
+                    onPress={() => navigation.navigate('EventDetail', { event: item })}
+                  />
+                </View>
+              )}
+            />
+          </View>
+        )}
 
         <View style={styles.section}>
           <Text style={styles.upcomingTitle}>Upcoming Events</Text>
           <Text style={styles.upcomingSub}>Find events happening near you</Text>
         </View>
 
-        {mockEvents.slice(0, 3).map((event) => (
+        {mockEvents.slice(3, 6).map((event) => (
           <EventCard
             key={event.id}
             event={event}
             isStarred={STARRED_EVENT_IDS.includes(event.id)}
-            onPress={() => navigation.navigate('EventDetail', { eventId: event.id })}
+            onPress={() => navigation.navigate('EventDetail', { event })}
           />
         ))}
       </ScrollView>
@@ -244,6 +277,7 @@ const styles = StyleSheet.create({
   friendCardTitle: { color: '#fff', fontSize: 18, fontFamily: fonts.semiBold, marginBottom: 8 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   metaText: { color: 'rgba(255,255,255,0.9)', fontSize: 13, fontFamily: fonts.regular },
+  metaTextSmall: { color: 'rgba(255,255,255,0.9)', fontSize: 12, fontFamily: fonts.regular, marginTop: 2 },
   upcomingTitle: { color: '#fff', fontSize: 26, fontFamily: fonts.semiBold, marginBottom: 4 },
   upcomingSub: { color: '#c4dcff', fontSize: 15, fontFamily: fonts.regular },
   eventCard: { height: 240, borderRadius: 14, overflow: 'hidden', marginTop: 16, marginHorizontal: 0 },
