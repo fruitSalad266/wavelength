@@ -13,8 +13,9 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { mockEvents, GOING_EVENT_IDS } from '../../data/mockEvents';
+import { GOING_EVENT_IDS } from '../../data/mockEvents';
 import { STARRED_EVENT_IDS, recentlyHappening, friendsAttending } from '../../data/mockEventFeed';
+import { useEvents } from '../../hooks/useEvents';
 import { Avatar } from '../../components/Avatar';
 import { Badge } from '../../components/Badge';
 import { fonts } from '../../theme/fonts';
@@ -121,7 +122,8 @@ function EventCard({ event, onPress, isStarred }) {
 
 export default function EventFeedScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const goingEvents = mockEvents.filter((e) => GOING_EVENT_IDS.includes(e.id));
+  const { events: supabaseEvents, loading } = useEvents();
+  const goingEvents = supabaseEvents.filter((e) => GOING_EVENT_IDS.includes(e.id));
 
   return (
     <View style={styles.root}>
@@ -214,7 +216,7 @@ export default function EventFeedScreen({ navigation }) {
           <Text style={styles.upcomingSub}>Find events happening near you</Text>
         </View>
 
-        {mockEvents.slice(3, 6).map((event) => (
+        {supabaseEvents.slice(0, 3).map((event) => (
           <EventCard
             key={event.id}
             event={event}

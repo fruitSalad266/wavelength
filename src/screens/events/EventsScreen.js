@@ -12,7 +12,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { mockEvents, UW_EVENTS, STARRED_EVENT_IDS } from '../../data/mockEvents';
+import { UW_EVENTS, STARRED_EVENT_IDS } from '../../data/mockEvents';
+import { useEvents } from '../../hooks/useEvents';
 import { Badge } from '../../components/Badge';
 import { fonts } from '../../theme/fonts';
 
@@ -71,8 +72,9 @@ function LargeEventCard({ event, onPress, isStarred }) {
 export default function EventsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const { events: supabaseEvents, loading } = useEvents();
 
-  const allEvents = [...mockEvents, ...UW_EVENTS];
+  const allEvents = [...supabaseEvents, ...UW_EVENTS];
   const filteredEvents =
     selectedCategory === 'All'
       ? allEvents
