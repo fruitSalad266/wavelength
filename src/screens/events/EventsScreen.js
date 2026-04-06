@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
+  FlatList,
   Image,
   TouchableOpacity,
   Dimensions,
@@ -12,7 +13,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { UW_EVENTS, STARRED_EVENT_IDS } from '../../data/mockEvents';
+import { STARRED_EVENT_IDS } from '../../data/mockEvents';
 import { useEvents } from '../../hooks/useEvents';
 import { Badge } from '../../components/Badge';
 import { fonts } from '../../theme/fonts';
@@ -25,7 +26,7 @@ function formatDate(dateString) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function LargeEventCard({ event, onPress, isStarred }) {
+const LargeEventCard = React.memo(function LargeEventCard({ event, onPress, isStarred }) {
   return (
     <TouchableOpacity style={s.eventCard} activeOpacity={0.85} onPress={onPress}>
       <Image source={{ uri: event.backgroundImage }} style={s.eventCardImage} />
@@ -67,18 +68,17 @@ function LargeEventCard({ event, onPress, isStarred }) {
       </View>
     </TouchableOpacity>
   );
-}
+});
 
 export default function EventsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const [selectedCategory, setSelectedCategory] = useState('All');
   const { events: supabaseEvents, loading } = useEvents();
 
-  const allEvents = [...supabaseEvents, ...UW_EVENTS];
-  const filteredEvents =
-    selectedCategory === 'All'
-      ? allEvents
-      : allEvents.filter((e) => e.category === selectedCategory);
+  const filteredEvents = useMemo(() => {
+    if (selectedCategory === 'All') return supabaseEvents;
+    return supabaseEvents.filter((e) => e.category === selectedCategory);
+  }, [supabaseEvents, selectedCategory]);
 
   return (
     <View style={s.root}>
@@ -96,40 +96,46 @@ export default function EventsScreen({ navigation }) {
         </View>
       </View>
 
-      <ScrollView
+      <FlatList
+        data={filteredEvents}
+        keyExtractor={(item) => item.id}
         contentContainerStyle={[s.scrollContent, { paddingBottom: insets.bottom + 100 }]}
         showsVerticalScrollIndicator={false}
-      >
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={s.categoryRow}
-          style={{ marginTop: 16 }}
-        >
-          {categories.map((cat) => (
-            <TouchableOpacity
-              key={cat}
-              style={[s.categoryPill, selectedCategory === cat && s.categoryPillActive]}
-              onPress={() => setSelectedCategory(cat)}
+        initialNumToRender={5}
+        maxToRenderPerBatch={5}
+        windowSize={5}
+        removeClippedSubviews
+        ListHeaderComponent={
+          <>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.categoryRow}
+              style={{ marginTop: 16 }}
             >
-              <Text style={[s.categoryText, selectedCategory === cat && s.categoryTextActive]}>
-                {cat}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        <Text style={s.resultCount}>{filteredEvents.length} events found</Text>
-
-        {filteredEvents.map((event) => (
+              {categories.map((cat) => (
+                <TouchableOpacity
+                  key={cat}
+                  style={[s.categoryPill, selectedCategory === cat && s.categoryPillActive]}
+                  onPress={() => setSelectedCategory(cat)}
+                >
+                  <Text style={[s.categoryText, selectedCategory === cat && s.categoryTextActive]}>
+                    {cat}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <Text style={s.resultCount}>{filteredEvents.length} events found</Text>
+          </>
+        }
+        renderItem={({ item }) => (
           <LargeEventCard
-            key={event.id}
-            event={event}
-            isStarred={STARRED_EVENT_IDS.includes(event.id)}
-            onPress={() => navigation.navigate('EventDetail', { event })}
+            event={item}
+            isStarred={STARRED_EVENT_IDS.includes(item.id)}
+            onPress={() => navigation.navigate('EventDetail', { event: item })}
           />
-        ))}
-      </ScrollView>
+        )}
+      />
     </View>
   );
 }
