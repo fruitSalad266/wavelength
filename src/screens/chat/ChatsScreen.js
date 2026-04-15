@@ -6,15 +6,29 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '../../components/Avatar';
 import { fonts } from '../../theme/fonts';
-import { GROUP_CHATS_LIST, DIRECT_MESSAGES_LIST } from '../../data/mockChats';
+import { useMyGroupChats } from '../../hooks/useGroupChats';
+import { useDirectMessageThreads } from '../../hooks/useMessages';
+
+function formatTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const now = new Date();
+  const diff = now - d;
+  if (diff < 60000) return 'now';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
 
 function GroupChatRow({ chat, onPress }) {
+  const lastMsg = chat.lastMessage;
   return (
     <TouchableOpacity style={s.chatRow} activeOpacity={0.7} onPress={onPress}>
       <LinearGradient colors={['#7300ff', '#00ac9b']} style={s.groupIcon}>
@@ -23,17 +37,12 @@ function GroupChatRow({ chat, onPress }) {
       <View style={s.chatInfo}>
         <View style={s.chatNameRow}>
           <Text style={s.chatName} numberOfLines={1}>{chat.name}</Text>
-          <Text style={s.chatTime}>{chat.time}</Text>
+          {lastMsg && <Text style={s.chatTime}>{formatTime(lastMsg.time)}</Text>}
         </View>
         <View style={s.chatMessageRow}>
-          <Text style={[s.chatMessage, chat.unread > 0 && s.chatMessageUnread]} numberOfLines={1}>
-            {chat.lastMessage}
+          <Text style={s.chatMessage} numberOfLines={1}>
+            {lastMsg ? `${lastMsg.senderName}: ${lastMsg.text}` : `${chat.memberCount} members`}
           </Text>
-          {chat.unread > 0 && (
-            <View style={s.unreadBadge}>
-              <Text style={s.unreadText}>{chat.unread}</Text>
-            </View>
-          )}
         </View>
       </View>
     </TouchableOpacity>
@@ -47,25 +56,33 @@ function DirectMessageRow({ chat, onPress }) {
       <View style={s.chatInfo}>
         <View style={s.chatNameRow}>
           <Text style={s.chatName} numberOfLines={1}>{chat.name}</Text>
-          <Text style={s.chatTime}>{chat.time}</Text>
+          <Text style={s.chatTime}>{formatTime(chat.time)}</Text>
         </View>
         <View style={s.chatMessageRow}>
-          <Text style={[s.chatMessage, chat.unread > 0 && s.chatMessageUnread]} numberOfLines={1}>
+          <Text style={s.chatMessage} numberOfLines={1}>
             {chat.lastMessage}
           </Text>
-          {chat.unread > 0 && (
-            <View style={s.unreadBadge}>
-              <Text style={s.unreadText}>{chat.unread}</Text>
-            </View>
-          )}
         </View>
       </View>
     </TouchableOpacity>
   );
 }
 
+function EmptyState({ icon, text }) {
+  return (
+    <View style={s.emptyState}>
+      <Feather name={icon} size={24} color="#9ca3af" />
+      <Text style={s.emptyText}>{text}</Text>
+    </View>
+  );
+}
+
 export default function ChatsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const { chats: groupChats, loading: gcLoading } = useMyGroupChats();
+  const { threads: dmThreads, loading: dmLoading } = useDirectMessageThreads();
+
+  const loading = gcLoading || dmLoading;
 
   return (
     <View style={s.root}>
@@ -78,44 +95,58 @@ export default function ChatsScreen({ navigation }) {
         </View>
       </View>
 
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={s.card}>
-          <View style={s.sectionHeader}>
-            <Feather name="users" size={16} color="#9810FA" />
-            <Text style={s.sectionTitle}>Group Chats</Text>
-            <View style={s.countBadge}>
-              <Text style={s.countText}>{GROUP_CHATS_LIST.length}</Text>
-            </View>
-          </View>
-          {GROUP_CHATS_LIST.map((chat) => (
-            <GroupChatRow
-              key={chat.id}
-              chat={chat}
-              onPress={() => navigation.navigate('GroupChat', { groupId: chat.id })}
-            />
-          ))}
-
-          <View style={s.divider} />
-
-          <View style={s.sectionHeader}>
-            <Feather name="message-circle" size={16} color="#9810FA" />
-            <Text style={s.sectionTitle}>Direct Messages</Text>
-            <View style={s.countBadge}>
-              <Text style={s.countText}>{DIRECT_MESSAGES_LIST.length}</Text>
-            </View>
-          </View>
-          {DIRECT_MESSAGES_LIST.map((chat) => (
-            <DirectMessageRow
-              key={chat.id}
-              chat={chat}
-              onPress={() => navigation.navigate('DirectMessage', { userId: chat.id })}
-            />
-          ))}
+      {loading ? (
+        <View style={s.loadingWrap}>
+          <ActivityIndicator size="large" color="#fff" />
         </View>
-      </ScrollView>
+      ) : (
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={s.card}>
+            <View style={s.sectionHeader}>
+              <Feather name="users" size={16} color="#9810FA" />
+              <Text style={s.sectionTitle}>Group Chats</Text>
+              <View style={s.countBadge}>
+                <Text style={s.countText}>{groupChats.length}</Text>
+              </View>
+            </View>
+            {groupChats.length > 0 ? (
+              groupChats.map((chat) => (
+                <GroupChatRow
+                  key={chat.id}
+                  chat={chat}
+                  onPress={() => navigation.navigate('GroupChat', { groupId: chat.id, groupName: chat.name })}
+                />
+              ))
+            ) : (
+              <EmptyState icon="users" text="Join a group chat from an event page" />
+            )}
+
+            <View style={s.divider} />
+
+            <View style={s.sectionHeader}>
+              <Feather name="message-circle" size={16} color="#9810FA" />
+              <Text style={s.sectionTitle}>Direct Messages</Text>
+              <View style={s.countBadge}>
+                <Text style={s.countText}>{dmThreads.length}</Text>
+              </View>
+            </View>
+            {dmThreads.length > 0 ? (
+              dmThreads.map((chat) => (
+                <DirectMessageRow
+                  key={chat.id}
+                  chat={chat}
+                  onPress={() => navigation.navigate('DirectMessage', { userId: chat.id, userName: chat.name })}
+                />
+              ))
+            ) : (
+              <EmptyState icon="message-circle" text="No messages yet" />
+            )}
+          </View>
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -139,6 +170,12 @@ const s = StyleSheet.create({
     color: '#fff',
     fontSize: 24,
     fontFamily: fonts.semiBold,
+  },
+
+  loadingWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   card: {
@@ -228,22 +265,15 @@ const s = StyleSheet.create({
     color: '#4a5565',
     flex: 1,
   },
-  chatMessageUnread: {
-    fontFamily: fonts.medium,
-    color: '#101828',
-  },
-  unreadBadge: {
-    backgroundColor: '#7300ff',
-    minWidth: 22,
-    height: 22,
-    borderRadius: 11,
+
+  emptyState: {
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 6,
+    paddingVertical: 20,
+    gap: 8,
   },
-  unreadText: {
-    color: '#fff',
-    fontSize: 11,
-    fontFamily: fonts.semiBold,
+  emptyText: {
+    fontSize: 14,
+    fontFamily: fonts.regular,
+    color: '#9ca3af',
   },
 });

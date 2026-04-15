@@ -10,6 +10,7 @@ import {
 } from '@expo-google-fonts/dm-sans';
 import * as SplashScreen from 'expo-splash-screen';
 import AppNavigator from './src/navigation/AppNavigator';
+import { AuthProvider } from './src/contexts/AuthContext';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -31,9 +32,11 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
-        <AppNavigator />
-      </View>
+      <AuthProvider>
+        <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+          <AppNavigator />
+        </View>
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }

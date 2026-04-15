@@ -14,8 +14,10 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '../../components/Avatar';
 import { Badge } from '../../components/Badge';
+import { useAuth } from '../../contexts/AuthContext';
 import { fonts } from '../../theme/fonts';
-import { profileInterests as interests, profileRecentEvents as recentEvents, profileTopEvents as topEvents, profileSocialLinks as socialLinks, profileMutualFriends as mutualFriends } from '../../data/mockProfile';
+import { getPromptById } from '../../data/profilePrompts';
+import { profileRecentEvents as recentEvents, profileMutualFriends as mutualFriends } from '../../data/mockProfile';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -45,6 +47,75 @@ function EventThumb({ event }) {
   );
 }
 
+function ProfilePromptCard({ promptData }) {
+  const def = getPromptById(promptData.id);
+  if (!def || !promptData.answer) return null;
+
+  const icon = def.icon;
+  const label = def.label;
+
+  if (def.type === 'text') {
+    return (
+      <Card>
+        <View style={styles.promptHeader}>
+          <Feather name={icon} size={18} color="#9810FA" />
+          <Text style={styles.promptLabel}>{label}</Text>
+        </View>
+        <Text style={styles.bioText}>{promptData.answer}</Text>
+      </Card>
+    );
+  }
+
+  if (def.type === 'anthem') {
+    const a = promptData.answer;
+    return (
+      <Card>
+        <View style={styles.anthemRow}>
+          <View style={styles.anthemIcon}>
+            <Feather name="music" size={22} color="#9810FA" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.anthemLabel}>{label}</Text>
+            <Text style={styles.anthemTitle}>{a.title}</Text>
+            <Text style={styles.anthemArtist}>{a.artist}</Text>
+          </View>
+          {a.url ? (
+            <TouchableOpacity
+              style={styles.playBtn}
+              onPress={() => Linking.openURL(a.url)}
+            >
+              <Feather name="play" size={20} color="#fff" />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      </Card>
+    );
+  }
+
+  if (def.type === 'list') {
+    const items = Array.isArray(promptData.answer) ? promptData.answer : [];
+    return (
+      <Card>
+        <View style={styles.promptHeader}>
+          <Feather name={icon} size={18} color="#9810FA" />
+          <Text style={styles.promptLabel}>{label}</Text>
+        </View>
+        {items.map((item, idx) => (
+          <View key={idx} style={styles.topEventRow}>
+            <Text style={styles.topEventEmoji}>{item.emoji}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.topEventTitle}>{item.title}</Text>
+              {item.desc ? <Text style={styles.topEventDesc}>{item.desc}</Text> : null}
+            </View>
+          </View>
+        ))}
+      </Card>
+    );
+  }
+
+  return null;
+}
+
 function FriendExpandedRow({ friend }) {
   return (
     <View style={styles.friendExpandedRow}>
@@ -68,7 +139,19 @@ function FriendExpandedRow({ friend }) {
 
 export default function ProfileScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const { profile } = useAuth();
   const [friendsExpanded, setFriendsExpanded] = useState(false);
+
+  const displayName = profile?.full_name || 'User';
+  const avatarUrl = profile?.avatar_url;
+  const location = profile?.location || '';
+  const ageRange = profile?.age_range || '';
+  const interests = profile?.interests || [];
+  const classYear = profile?.class_year || '';
+  const major = profile?.major || '';
+  const clubs = profile?.extras?.clubs || [];
+  const socialLinks = profile?.extras?.social_links || [];
+  const prompts = profile?.extras?.prompts || [];
 
   const PREVIEW_COUNT = 5;
   const visibleFriends = friendsExpanded ? mutualFriends : mutualFriends.slice(0, PREVIEW_COUNT);
@@ -116,8 +199,8 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.avatarContainer}>
           <View style={styles.avatarOuter}>
             <Avatar
-              uri="https://images.unsplash.com/photo-1544723795-3fb6469f5b39?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400"
-              name="Alex"
+              uri={avatarUrl}
+              name={displayName}
               size={112}
               style={{ borderWidth: 0 }}
             />
@@ -126,11 +209,15 @@ export default function ProfileScreen({ navigation }) {
 
         {/* Name & info */}
         <View style={styles.profileInfo}>
-          <Text style={styles.profileName}>Alex</Text>
+          <Text style={styles.profileName}>{displayName}</Text>
           <View style={styles.locationRow}>
-            <Feather name="map-pin" size={14} color="rgba(255,255,255,0.7)" />
-            <Text style={styles.locationText}>Seattle, WA</Text>
-            <Text style={styles.ageText}>25-30</Text>
+            {location ? (
+              <>
+                <Feather name="map-pin" size={14} color="rgba(255,255,255,0.7)" />
+                <Text style={styles.locationText}>{location}</Text>
+              </>
+            ) : null}
+            {ageRange ? <Text style={styles.ageText}>{ageRange}</Text> : null}
           </View>
         </View>
 
@@ -156,79 +243,40 @@ export default function ProfileScreen({ navigation }) {
               <Text style={styles.uwTitle}>University of Washington</Text>
             </View>
             <View style={styles.uwGrid}>
-              <View style={styles.uwItem}>
-                <Feather name="calendar" size={14} color="rgba(255,255,255,0.7)" />
-                <Text style={styles.uwItemLabel}>Class of</Text>
-                <Text style={styles.uwItemValue}>2026</Text>
-              </View>
-              <View style={styles.uwItem}>
-                <Feather name="book-open" size={14} color="rgba(255,255,255,0.7)" />
-                <Text style={styles.uwItemLabel}>Major</Text>
-                <Text style={styles.uwItemValue}>Computer Science</Text>
-              </View>
+              {classYear ? (
+                <View style={styles.uwItem}>
+                  <Feather name="calendar" size={14} color="rgba(255,255,255,0.7)" />
+                  <Text style={styles.uwItemLabel}>Class of</Text>
+                  <Text style={styles.uwItemValue}>{classYear}</Text>
+                </View>
+              ) : null}
+              {major ? (
+                <View style={styles.uwItem}>
+                  <Feather name="book-open" size={14} color="rgba(255,255,255,0.7)" />
+                  <Text style={styles.uwItemLabel}>Major</Text>
+                  <Text style={styles.uwItemValue}>{major}</Text>
+                </View>
+              ) : null}
             </View>
-            <View style={styles.uwClubsSection}>
-              <Text style={styles.uwClubsLabel}>Affiliated Clubs</Text>
-              <View style={styles.uwClubsWrap}>
-                <View style={styles.uwClub}>
-                  <Text style={styles.uwClubText}>Phi Beta Kappa</Text>
-                </View>
-                <View style={styles.uwClub}>
-                  <Text style={styles.uwClubText}>ACM @ UW</Text>
-                </View>
-                <View style={styles.uwClub}>
-                  <Text style={styles.uwClubText}>Husky Coding Project</Text>
+            {clubs.length > 0 && (
+              <View style={styles.uwClubsSection}>
+                <Text style={styles.uwClubsLabel}>Affiliated Clubs</Text>
+                <View style={styles.uwClubsWrap}>
+                  {clubs.map((club, idx) => (
+                    <View key={idx} style={styles.uwClub}>
+                      <Text style={styles.uwClubText}>{club}</Text>
+                    </View>
+                  ))}
                 </View>
               </View>
-            </View>
+            )}
             
           </View>
 
-          {/* Bio */}
-          <Card>
-            <Text style={styles.cardTitle}>Bio</Text>
-            <Text style={styles.bioText}>
-              Front row seats, amazing friends, and singing along to every song at the top of my
-              lungs. Bonus points if there's confetti and incredible light shows! 🎵✨
-            </Text>
-          </Card>
-
-          {/* Top 3 Events */}
-          <Card>
-            <View style={styles.promptHeader}>
-              <Feather name="heart" size={18} color="#9810FA" />
-              <Text style={styles.promptLabel}>Top 3 events I've been to...</Text>
-            </View>
-            {topEvents.map((item, idx) => (
-              <View key={idx} style={styles.topEventRow}>
-                <Text style={styles.topEventEmoji}>{item.emoji}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.topEventTitle}>{item.title}</Text>
-                  <Text style={styles.topEventDesc}>{item.desc}</Text>
-                </View>
-              </View>
-            ))}
-          </Card>
-
-          {/* Current Anthem */}
-          <Card>
-            <View style={styles.anthemRow}>
-              <View style={styles.anthemIcon}>
-                <Feather name="music" size={22} color="#9810FA" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.anthemLabel}>Current Anthem</Text>
-                <Text style={styles.anthemTitle}>Blinding Lights</Text>
-                <Text style={styles.anthemArtist}>The Weeknd</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.playBtn}
-                onPress={() => Linking.openURL('https://open.spotify.com/track/0VjIjW4GlUZAMYd2vXMi3b')}
-              >
-                <Feather name="play" size={20} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          </Card>
+          {/* Profile Prompts */}
+          {prompts.map((p) => (
+            <ProfilePromptCard key={p.id} promptData={p} />
+          ))}
 
           {/* Recently Attended Events */}
           <Card>
@@ -241,21 +289,23 @@ export default function ProfileScreen({ navigation }) {
           </Card>
 
           {/* Connect */}
-          <Card>
-            <Text style={styles.cardTitle}>Connect</Text>
-            <View style={styles.socialGrid}>
-              {socialLinks.map((link, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={styles.socialRow}
-                  onPress={() => Linking.openURL(link.url)}
-                >
-                  <Feather name={link.icon} size={18} color={link.color} />
-                  <Text style={styles.socialLabel}>{link.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </Card>
+          {socialLinks.length > 0 && (
+            <Card>
+              <Text style={styles.cardTitle}>Connect</Text>
+              <View style={styles.socialGrid}>
+                {socialLinks.map((link, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={styles.socialRow}
+                    onPress={() => Linking.openURL(link.url)}
+                  >
+                    <Feather name={link.icon || 'link'} size={18} color={link.color || '#7300ff'} />
+                    <Text style={styles.socialLabel}>{link.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </Card>
+          )}
 
           
         </View>

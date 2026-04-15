@@ -13,9 +13,10 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { STARRED_EVENT_IDS } from '../../data/mockEvents';
 import { useEvents } from '../../hooks/useEvents';
+import { useMyRSVPs } from '../../hooks/useRSVP';
 import { Badge } from '../../components/Badge';
+import { EventImage } from '../../components/EventImage';
 import { fonts } from '../../theme/fonts';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -29,7 +30,7 @@ function formatDate(dateString) {
 const LargeEventCard = React.memo(function LargeEventCard({ event, onPress, isStarred }) {
   return (
     <TouchableOpacity style={s.eventCard} activeOpacity={0.85} onPress={onPress}>
-      <Image source={{ uri: event.backgroundImage }} style={s.eventCardImage} />
+      <EventImage uri={event.backgroundImage} source={event.source} style={s.eventCardImage} />
       <LinearGradient colors={['transparent', 'rgba(0,0,0,0.85)']} style={s.eventCardOverlay} />
 
       <View style={s.eventCardContent}>
@@ -74,6 +75,7 @@ export default function EventsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const [selectedCategory, setSelectedCategory] = useState('All');
   const { events: supabaseEvents, loading } = useEvents();
+  const { starredEventIds } = useMyRSVPs();
 
   const filteredEvents = useMemo(() => {
     if (selectedCategory === 'All') return supabaseEvents;
@@ -131,7 +133,7 @@ export default function EventsScreen({ navigation }) {
         renderItem={({ item }) => (
           <LargeEventCard
             event={item}
-            isStarred={STARRED_EVENT_IDS.includes(item.id)}
+            isStarred={starredEventIds.includes(item.id)}
             onPress={() => navigation.navigate('EventDetail', { event: item })}
           />
         )}

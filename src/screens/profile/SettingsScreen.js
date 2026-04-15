@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,13 +8,20 @@ import {
   TextInput,
   Switch,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
+import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 import { fonts } from '../../theme/fonts';
+import { colors } from '../../theme/colors';
+import { PROFILE_PROMPTS, MAX_PROMPTS, getPromptById } from '../../data/profilePrompts';
 
 // ---------------------------------------------------------------------------
 // Reusable sub-components
@@ -32,7 +39,7 @@ function Label({ text }) {
   return <Text style={s.label}>{text}</Text>;
 }
 
-function Input({ value, onChangeText, placeholder, multiline, numberOfLines, keyboardType }) {
+function Input({ value, onChangeText, placeholder, multiline, numberOfLines, keyboardType, maxLength }) {
   return (
     <TextInput
       style={[s.input, multiline && { height: numberOfLines ? numberOfLines * 22 : 88, textAlignVertical: 'top', paddingTop: 12 }]}
@@ -43,6 +50,7 @@ function Input({ value, onChangeText, placeholder, multiline, numberOfLines, key
       multiline={multiline}
       numberOfLines={numberOfLines}
       keyboardType={keyboardType}
+      maxLength={maxLength}
     />
   );
 }
@@ -85,24 +93,36 @@ function PickerRow({ label, value, options, onSelect }) {
   );
 }
 
-function SaveButton({ label, onPress }) {
+function PillMultiSelect({ options, selected, onToggle }) {
   return (
-    <TouchableOpacity style={s.saveBtn} activeOpacity={0.8} onPress={onPress}>
-      <Text style={s.saveBtnText}>{label}</Text>
-    </TouchableOpacity>
+    <View style={s.categoryGrid}>
+      {options.map((opt) => {
+        const active = selected.includes(opt);
+        return (
+          <TouchableOpacity
+            key={opt}
+            style={[s.categoryChip, active && s.categoryChipActive]}
+            onPress={() => onToggle(opt)}
+          >
+            {active && <Feather name="check" size={13} color="#fff" style={{ marginRight: 4 }} />}
+            <Text style={[s.categoryChipText, active && s.categoryChipTextActive]}>{opt}</Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Tab definitions
+// Tab definitions & constants
 // ---------------------------------------------------------------------------
 
 const TABS = [
   { id: 'profile', label: 'Profile', icon: 'user' },
+  { id: 'prompts', label: 'Prompts', icon: 'message-circle' },
   { id: 'privacy', label: 'Privacy', icon: 'lock' },
-  { id: 'notifications', label: 'Notifications', icon: 'bell' },
+  { id: 'notifications', label: 'Alerts', icon: 'bell' },
   { id: 'events', label: 'Events', icon: 'calendar' },
-  { id: 'verification', label: 'Verify', icon: 'award' },
 ];
 
 const VISIBILITY_OPTIONS = [
@@ -118,11 +138,19 @@ const MESSAGE_OPTIONS = [
 ];
 
 const AGE_OPTIONS = [
-  { value: '18-24', label: '18-24' },
+  { value: '18-20', label: '18-20' },
+  { value: '21-24', label: '21-24' },
   { value: '25-30', label: '25-30' },
-  { value: '31-40', label: '31-40' },
-  { value: '41-50', label: '41-50' },
-  { value: '51+', label: '51+' },
+  { value: '30+', label: '30+' },
+];
+
+const CLASS_YEARS = ['2025', '2026', '2027', '2028', '2029'];
+
+const INTEREST_OPTIONS = [
+  'Music Festivals', 'Concerts', 'Sports', 'Nightlife',
+  'Art & Culture', 'Food & Dining', 'Technology', 'Networking',
+  'Fitness & Outdoors', 'Film & Cinema', 'Gaming', 'Comedy',
+  'Fashion', 'Travel', 'Photography', 'Volunteering',
 ];
 
 const RADIUS_OPTIONS = [
@@ -133,16 +161,111 @@ const RADIUS_OPTIONS = [
   { value: 'unlimited', label: 'Any' },
 ];
 
-const ALL_CATEGORIES = [
-  'Music Festivals', 'Art & Culture', 'Food & Dining', 'Technology',
-  'Photography', 'Travel', 'Sports', 'Comedy',
+const SOCIAL_PLATFORMS = [
+  { key: 'instagram', icon: 'instagram', label: 'Instagram', placeholder: '@username', color: colors.instagram },
+  { key: 'twitter', icon: 'twitter', label: 'X / Twitter', placeholder: '@handle', color: colors.twitter },
+  { key: 'spotify', icon: 'music', label: 'Spotify', placeholder: 'username', color: colors.spotify },
+  { key: 'linkedin', icon: 'linkedin', label: 'LinkedIn', placeholder: 'profile-slug', color: colors.linkedin },
 ];
+
+// ---------------------------------------------------------------------------
+// Prompt editor (Hinge-style)
+// ---------------------------------------------------------------------------
+
+function PromptAnswerEditor({ prompt, answer, onChange }) {
+  if (prompt.type === 'text') {
+    return (
+      <Input
+        value={answer || ''}
+        onChangeText={onChange}
+        placeholder={`${prompt.label}...`}
+        multiline
+        numberOfLines={3}
+        maxLength={prompt.maxLength || 200}
+      />
+    );
+  }
+
+  if (prompt.type === 'anthem') {
+    const val = answer || { title: '', artist: '', url: '' };
+    return (
+      <View style={{ gap: 8 }}>
+        <Input value={val.title} onChangeText={(v) => onChange({ ...val, title: v })} placeholder="Song title" />
+        <Input value={val.artist} onChangeText={(v) => onChange({ ...val, artist: v })} placeholder="Artist" />
+        <Input value={val.url} onChangeText={(v) => onChange({ ...val, url: v })} placeholder="Spotify link (optional)" keyboardType="url" />
+      </View>
+    );
+  }
+
+  // list type
+  const items = answer || [];
+  const maxItems = prompt.maxItems || 3;
+  const updateItem = (idx, field, value) => {
+    const updated = [...items];
+    updated[idx] = { ...updated[idx], [field]: value };
+    onChange(updated);
+  };
+  const addItem = () => {
+    if (items.length < maxItems) onChange([...items, { emoji: '', title: '', desc: '' }]);
+  };
+  const removeItem = (idx) => onChange(items.filter((_, i) => i !== idx));
+
+  return (
+    <View style={{ gap: 8 }}>
+      {items.map((item, idx) => (
+        <View key={idx} style={s.listItemRow}>
+          <Input value={item.emoji} onChangeText={(v) => updateItem(idx, 'emoji', v)} placeholder="🎵" maxLength={2} />
+          <View style={{ flex: 1, gap: 4 }}>
+            <Input value={item.title} onChangeText={(v) => updateItem(idx, 'title', v)} placeholder="Event name" />
+            <Input value={item.desc} onChangeText={(v) => updateItem(idx, 'desc', v)} placeholder="Short memory..." maxLength={80} />
+          </View>
+          <TouchableOpacity onPress={() => removeItem(idx)} style={{ padding: 6 }}>
+            <Feather name="x" size={16} color={colors.textTertiary} />
+          </TouchableOpacity>
+        </View>
+      ))}
+      {items.length < maxItems && (
+        <TouchableOpacity style={s.addListBtn} onPress={addItem}>
+          <Feather name="plus" size={14} color={colors.primary} />
+          <Text style={s.addListBtnText}>Add item ({items.length}/{maxItems})</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Tab content components
 // ---------------------------------------------------------------------------
 
-function ProfileTab({ data, setData }) {
+function ProfileTab({ data, setData, avatarUri, onPickAvatar }) {
+  const toggleInterest = (interest) => {
+    const current = data.interests || [];
+    if (current.includes(interest)) {
+      setData({ ...data, interests: current.filter((i) => i !== interest) });
+    } else {
+      setData({ ...data, interests: [...current, interest] });
+    }
+  };
+
+  const addClub = () => {
+    if (data.clubInput?.trim()) {
+      setData({
+        ...data,
+        clubs: [...(data.clubs || []), data.clubInput.trim()],
+        clubInput: '',
+      });
+    }
+  };
+
+  const removeClub = (idx) => {
+    setData({ ...data, clubs: data.clubs.filter((_, i) => i !== idx) });
+  };
+
+  const updateSocial = (key, value) => {
+    setData({ ...data, socials: { ...data.socials, [key]: value } });
+  };
+
   return (
     <View>
       <Text style={s.tabHeading}>Edit Profile</Text>
@@ -151,9 +274,13 @@ function ProfileTab({ data, setData }) {
         <SectionTitle text="Profile Picture" />
         <View style={s.avatarRow}>
           <View style={s.avatarCircle}>
-            <Feather name="user" size={32} color="#7300ff" />
+            {avatarUri ? (
+              <Image source={{ uri: avatarUri }} style={s.avatarImage} />
+            ) : (
+              <Feather name="user" size={32} color="#7300ff" />
+            )}
           </View>
-          <TouchableOpacity style={s.uploadBtn} activeOpacity={0.8}>
+          <TouchableOpacity style={s.uploadBtn} activeOpacity={0.8} onPress={onPickAvatar}>
             <Feather name="upload" size={15} color="#fff" />
             <Text style={s.uploadBtnText}>Upload Photo</Text>
           </TouchableOpacity>
@@ -162,7 +289,7 @@ function ProfileTab({ data, setData }) {
 
       <Card>
         <SectionTitle text="Basic Information" />
-        <Label text="Name" />
+        <Label text="Display Name" />
         <Input value={data.name} onChangeText={(v) => setData({ ...data, name: v })} placeholder="Your name" />
 
         <Label text="Location" />
@@ -182,26 +309,159 @@ function ProfileTab({ data, setData }) {
             </TouchableOpacity>
           ))}
         </ScrollView>
-
-        <Label text="Bio" />
-        <Input
-          value={data.bio}
-          onChangeText={(v) => setData({ ...data, bio: v })}
-          placeholder="Tell us about yourself..."
-          multiline
-          numberOfLines={4}
-        />
       </Card>
 
       <Card>
-        <SectionTitle text="Current Anthem" />
-        <Label text="Song Title" />
-        <Input value={data.anthem} onChangeText={(v) => setData({ ...data, anthem: v })} placeholder="Song name" />
-        <Label text="Artist" />
-        <Input value={data.anthemArtist} onChangeText={(v) => setData({ ...data, anthemArtist: v })} placeholder="Artist name" />
+        <SectionTitle text="University of Washington" />
+        <Label text="Class Year" />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.pickerOptions}>
+          {CLASS_YEARS.map((yr) => (
+            <TouchableOpacity
+              key={yr}
+              style={[s.pickerPill, data.classYear === yr && s.pickerPillActive]}
+              onPress={() => setData({ ...data, classYear: yr })}
+            >
+              <Text style={[s.pickerPillText, data.classYear === yr && s.pickerPillTextActive]}>{yr}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        <Label text="Major" />
+        <Input value={data.major} onChangeText={(v) => setData({ ...data, major: v })} placeholder="e.g. Computer Science" />
+
+        <Label text="Clubs & Organizations" />
+        <View style={s.clubInputRow}>
+          <View style={{ flex: 1 }}>
+            <Input
+              value={data.clubInput}
+              onChangeText={(v) => setData({ ...data, clubInput: v })}
+              placeholder="Add a club..."
+            />
+          </View>
+          <TouchableOpacity style={s.addClubBtn} onPress={addClub}>
+            <Feather name="plus" size={18} color="#fff" />
+          </TouchableOpacity>
+        </View>
+        {(data.clubs || []).length > 0 && (
+          <View style={s.clubChips}>
+            {data.clubs.map((club, idx) => (
+              <View key={idx} style={s.clubChip}>
+                <Text style={s.clubChipText}>{club}</Text>
+                <TouchableOpacity onPress={() => removeClub(idx)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Feather name="x" size={14} color={colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
       </Card>
 
-      <SaveButton label="Save Changes" onPress={() => Alert.alert('Saved', 'Profile updated.')} />
+      <Card>
+        <SectionTitle text="Interests" />
+        <Text style={s.cardSubtext}>Pick at least 3 to help find events you'll love</Text>
+        <PillMultiSelect options={INTEREST_OPTIONS} selected={data.interests || []} onToggle={toggleInterest} />
+      </Card>
+
+      <Card>
+        <SectionTitle text="Social Links" />
+        {SOCIAL_PLATFORMS.map((p) => (
+          <View key={p.key} style={s.socialEditRow}>
+            <View style={[s.socialIcon, { backgroundColor: p.color }]}>
+              <Feather name={p.icon} size={14} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Input
+                value={data.socials?.[p.key] || ''}
+                onChangeText={(v) => updateSocial(p.key, v)}
+                placeholder={p.placeholder}
+              />
+            </View>
+          </View>
+        ))}
+      </Card>
+    </View>
+  );
+}
+
+function PromptsTab({ prompts, setPrompts }) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const addPrompt = (promptId) => {
+    if (prompts.length >= MAX_PROMPTS) return;
+    if (prompts.some((p) => p.id === promptId)) return;
+    setPrompts([...prompts, { id: promptId, answer: null }]);
+    setPickerOpen(false);
+  };
+
+  const removePrompt = (idx) => {
+    setPrompts(prompts.filter((_, i) => i !== idx));
+  };
+
+  const updateAnswer = (idx, answer) => {
+    const updated = [...prompts];
+    updated[idx] = { ...updated[idx], answer };
+    setPrompts(updated);
+  };
+
+  const availablePrompts = PROFILE_PROMPTS.filter(
+    (p) => !prompts.some((s) => s.id === p.id)
+  );
+
+  return (
+    <View>
+      <Text style={s.tabHeading}>Profile Prompts</Text>
+      <Text style={s.tabSubheading}>Pick up to {MAX_PROMPTS} prompts to show on your profile</Text>
+
+      {prompts.map((sp, idx) => {
+        const def = getPromptById(sp.id);
+        if (!def) return null;
+        return (
+          <Card key={sp.id}>
+            <View style={s.promptCardHeader}>
+              <Feather name={def.icon} size={16} color={colors.primary} />
+              <Text style={[s.sectionTitle, { flex: 1, marginBottom: 0 }]}>{def.label}</Text>
+              <TouchableOpacity onPress={() => removePrompt(idx)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Feather name="trash-2" size={16} color={colors.textTertiary} />
+              </TouchableOpacity>
+            </View>
+            <View style={{ marginTop: 12 }}>
+              <PromptAnswerEditor prompt={def} answer={sp.answer} onChange={(val) => updateAnswer(idx, val)} />
+            </View>
+          </Card>
+        );
+      })}
+
+      {prompts.length < MAX_PROMPTS && (
+        <>
+          <TouchableOpacity
+            style={s.addPromptBtn}
+            onPress={() => setPickerOpen(!pickerOpen)}
+            activeOpacity={0.7}
+          >
+            <Feather name={pickerOpen ? 'chevron-up' : 'plus'} size={18} color="rgba(255,255,255,0.9)" />
+            <Text style={s.addPromptBtnText}>
+              {pickerOpen ? 'Close' : `Add a prompt (${prompts.length}/${MAX_PROMPTS})`}
+            </Text>
+          </TouchableOpacity>
+
+          {pickerOpen && (
+            <Card>
+              {availablePrompts.map((p) => (
+                <TouchableOpacity
+                  key={p.id}
+                  style={s.promptPickerItem}
+                  onPress={() => addPrompt(p.id)}
+                  activeOpacity={0.7}
+                >
+                  <Feather name={p.icon} size={16} color={colors.primary} />
+                  <Text style={s.promptPickerText}>{p.label}</Text>
+                  <Feather name="plus" size={16} color={colors.textTertiary} />
+                </TouchableOpacity>
+              ))}
+            </Card>
+          )}
+        </>
+      )}
     </View>
   );
 }
@@ -239,8 +499,6 @@ function PrivacyTab({ data, setData }) {
         <ToggleRow title="Show my age range" value={data.showAge} onValueChange={(v) => setData({ ...data, showAge: v })} />
         <ToggleRow title="Show mutual friends" value={data.showMutualFriends} onValueChange={(v) => setData({ ...data, showMutualFriends: v })} />
       </Card>
-
-      <SaveButton label="Save Privacy Settings" onPress={() => Alert.alert('Saved', 'Privacy settings updated.')} />
     </View>
   );
 }
@@ -265,8 +523,6 @@ function NotificationsTab({ data, setData }) {
         <SectionTitle text="Email Notifications" />
         <ToggleRow title="Send me email notifications" subtitle="Receive important updates via email" value={data.emailNotifications} onValueChange={() => toggle('emailNotifications')} />
       </Card>
-
-      <SaveButton label="Save Notification Settings" onPress={() => Alert.alert('Saved', 'Notification settings updated.')} />
     </View>
   );
 }
@@ -286,20 +542,7 @@ function EventsTab({ data, setData }) {
       <Card>
         <SectionTitle text="Favorite Categories" />
         <Text style={s.cardSubtext}>Select categories to see more relevant events</Text>
-        <View style={s.categoryGrid}>
-          {ALL_CATEGORIES.map((cat) => {
-            const active = data.categories.includes(cat);
-            return (
-              <TouchableOpacity
-                key={cat}
-                style={[s.categoryChip, active && s.categoryChipActive]}
-                onPress={() => toggleCategory(cat)}
-              >
-                <Text style={[s.categoryChipText, active && s.categoryChipTextActive]}>{cat}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        <PillMultiSelect options={INTEREST_OPTIONS} selected={data.categories} onToggle={toggleCategory} />
       </Card>
 
       <Card>
@@ -313,121 +556,6 @@ function EventsTab({ data, setData }) {
         <ToggleRow title="Show event recommendations" subtitle="See personalized event suggestions" value={data.showRecommendations} onValueChange={(v) => setData({ ...data, showRecommendations: v })} />
         <ToggleRow title="Auto-join group chats" subtitle="Automatically join event group chats" value={data.autoJoinGroups} onValueChange={(v) => setData({ ...data, autoJoinGroups: v })} />
       </Card>
-
-      <SaveButton label="Save Event Preferences" onPress={() => Alert.alert('Saved', 'Event preferences updated.')} />
-    </View>
-  );
-}
-
-function VerificationTab({ isVerified, setIsVerified }) {
-  const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
-  const [codeSent, setCodeSent] = useState(false);
-
-  const handleSendCode = () => {
-    if (email.endsWith('@uw.edu') || email.endsWith('@u.washington.edu')) {
-      setCodeSent(true);
-    } else {
-      Alert.alert('Invalid Email', 'Please use a valid UW email address (@uw.edu or @u.washington.edu)');
-    }
-  };
-
-  const handleVerify = () => {
-    if (code === '123456') {
-      setIsVerified(true);
-    } else {
-      Alert.alert('Invalid Code', 'The verification code is incorrect.');
-    }
-  };
-
-  if (isVerified) {
-    return (
-      <View>
-        <Text style={s.tabHeading}>Student Verification</Text>
-        <Card style={{ alignItems: 'center', paddingVertical: 32 }}>
-          <View style={s.verifiedCircle}>
-            <Feather name="check-circle" size={36} color="#fff" />
-          </View>
-          <Text style={s.verifiedTitle}>Verified Student!</Text>
-          <Text style={s.verifiedSub}>You are verified as a University of Washington student</Text>
-          <View style={s.verifiedBadge}>
-            <Text style={s.verifiedBadgeText}>UW Student - Verified</Text>
-          </View>
-
-          <View style={s.benefitsBox}>
-            <Text style={s.benefitsLabel}>Benefits:</Text>
-            {[
-              'Access to verified student group chats',
-              'Priority matching with other UW students',
-              'Exclusive student events and discounts',
-              'Verification badge on your profile',
-            ].map((b, i) => (
-              <Text key={i} style={s.benefitItem}>✓  {b}</Text>
-            ))}
-          </View>
-        </Card>
-      </View>
-    );
-  }
-
-  return (
-    <View>
-      <Text style={s.tabHeading}>Student Verification</Text>
-
-      <Card>
-        <View style={s.whyRow}>
-          <View style={s.whyIcon}>
-            <Feather name="award" size={22} color="#7300ff" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={s.whyTitle}>Why verify?</Text>
-            {[
-              'Join exclusive verified student group chats',
-              'Connect with fellow students at events',
-              'Get a verification badge on your profile',
-              'Access student-only events and discounts',
-            ].map((item, i) => (
-              <Text key={i} style={s.whyItem}>•  {item}</Text>
-            ))}
-          </View>
-        </View>
-      </Card>
-
-      <Card>
-        <SectionTitle text="Verify with University Email" />
-        <Text style={s.cardSubtext}>
-          Enter your @uw.edu or @u.washington.edu email address to get verified
-        </Text>
-
-        {!codeSent ? (
-          <View>
-            <Label text="University Email" />
-            <Input
-              value={email}
-              onChangeText={setEmail}
-              placeholder="yourname@uw.edu"
-              keyboardType="email-address"
-            />
-            <TouchableOpacity style={s.saveBtn} activeOpacity={0.8} onPress={handleSendCode}>
-              <Feather name="mail" size={15} color="#fff" />
-              <Text style={s.saveBtnText}>Send Verification Code</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View>
-            <View style={s.codeSentBanner}>
-              <Text style={s.codeSentText}>✓ Verification code sent to {email}</Text>
-            </View>
-            <Label text="Verification Code" />
-            <Input value={code} onChangeText={setCode} placeholder="Enter 6-digit code" keyboardType="number-pad" />
-            <Text style={s.demoHint}>Demo code: 123456</Text>
-            <SaveButton label="Verify Student Status" onPress={handleVerify} />
-            <TouchableOpacity style={s.secondaryBtn} activeOpacity={0.7} onPress={() => setCodeSent(false)}>
-              <Text style={s.secondaryBtnText}>Use Different Email</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </Card>
     </View>
   );
 }
@@ -438,56 +566,173 @@ function VerificationTab({ isVerified, setIsVerified }) {
 
 export default function SettingsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const { user, profile, refreshProfile, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
-  const [isVerified, setIsVerified] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [newAvatarUri, setNewAvatarUri] = useState(null);
 
+  // Derive social map from stored social_links array
+  const buildSocialsMap = useCallback(() => {
+    const map = {};
+    (profile?.extras?.social_links || []).forEach((link) => {
+      const platform = SOCIAL_PLATFORMS.find((p) => p.icon === link.icon);
+      if (platform) map[platform.key] = link.label;
+    });
+    return map;
+  }, [profile]);
+
+  // Profile editing state — initialized from real profile
   const [profileData, setProfileData] = useState({
-    name: 'Alex',
-    location: 'Seattle, WA',
-    ageRange: '25-30',
-    bio: "Front row seats, amazing friends, and singing along to every song at the top of my lungs. Bonus points if there's confetti and incredible light shows! 🎵✨",
-    anthem: 'Blinding Lights',
-    anthemArtist: 'The Weeknd',
+    name: profile?.full_name || '',
+    location: profile?.location || '',
+    ageRange: profile?.age_range || '',
+    classYear: profile?.class_year ? String(profile.class_year) : '',
+    major: profile?.major || '',
+    clubs: profile?.extras?.clubs || [],
+    clubInput: '',
+    interests: profile?.interests || [],
+    socials: buildSocialsMap(),
   });
 
+  const [prompts, setPrompts] = useState(profile?.extras?.prompts || []);
+
   const [privacyData, setPrivacyData] = useState({
-    showProfile: 'everyone',
-    showEvents: 'friends',
-    allowMessages: 'everyone',
-    showLocation: true,
-    showAge: true,
-    showMutualFriends: true,
+    showProfile: profile?.settings?.privacy?.showProfile || 'everyone',
+    showEvents: profile?.settings?.privacy?.showEvents || 'friends',
+    allowMessages: profile?.settings?.privacy?.allowMessages || 'everyone',
+    showLocation: profile?.settings?.privacy?.showLocation !== false,
+    showAge: profile?.settings?.privacy?.showAge !== false,
+    showMutualFriends: profile?.settings?.privacy?.showMutualFriends !== false,
   });
 
   const [notifData, setNotifData] = useState({
-    eventReminders: true,
-    friendRequests: true,
-    messages: true,
-    groupChats: true,
-    eventUpdates: true,
-    newEvents: false,
-    emailNotifications: true,
+    eventReminders: profile?.settings?.notifications?.eventReminders !== false,
+    friendRequests: profile?.settings?.notifications?.friendRequests !== false,
+    messages: profile?.settings?.notifications?.messages !== false,
+    groupChats: profile?.settings?.notifications?.groupChats !== false,
+    eventUpdates: profile?.settings?.notifications?.eventUpdates !== false,
+    newEvents: profile?.settings?.notifications?.newEvents || false,
+    emailNotifications: profile?.settings?.notifications?.emailNotifications !== false,
   });
 
   const [eventsData, setEventsData] = useState({
-    categories: ['Music Festivals', 'Art & Culture', 'Food & Dining'],
-    showRecommendations: true,
-    autoJoinGroups: false,
-    radius: '25',
+    categories: profile?.settings?.events?.categories || profile?.interests || [],
+    showRecommendations: profile?.settings?.events?.showRecommendations !== false,
+    autoJoinGroups: profile?.settings?.events?.autoJoinGroups || false,
+    radius: profile?.settings?.events?.radius || '25',
   });
+
+  const avatarUrl = newAvatarUri || profile?.avatar_url;
+
+  const pickAvatar = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled) {
+      setNewAvatarUri(result.assets[0].uri);
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      // Build social links array from map
+      const socialLinks = SOCIAL_PLATFORMS
+        .filter((p) => profileData.socials[p.key]?.trim())
+        .map((p) => ({
+          icon: p.icon,
+          color: p.color,
+          label: profileData.socials[p.key].trim(),
+          url: '',
+        }));
+
+      // Filter prompts with non-empty answers
+      const cleanPrompts = prompts.filter((p) => {
+        if (!p.answer) return false;
+        if (typeof p.answer === 'string') return p.answer.trim().length > 0;
+        if (Array.isArray(p.answer)) return p.answer.some((i) => i.title?.trim());
+        if (typeof p.answer === 'object') return p.answer.title?.trim();
+        return false;
+      });
+
+      const updates = {
+        full_name: profileData.name.trim() || null,
+        location: profileData.location.trim() || null,
+        age_range: profileData.ageRange || null,
+        class_year: profileData.classYear ? parseInt(profileData.classYear, 10) : null,
+        major: profileData.major.trim() || null,
+        interests: profileData.interests,
+        extras: {
+          prompts: cleanPrompts,
+          clubs: profileData.clubs,
+          social_links: socialLinks,
+        },
+        settings: {
+          ...profile?.settings,
+          onboarding_complete: true,
+          privacy: privacyData,
+          notifications: notifData,
+          events: eventsData,
+        },
+        updated_at: new Date().toISOString(),
+      };
+
+      // Upload new avatar if changed
+      if (newAvatarUri) {
+        const ext = newAvatarUri.split('.').pop()?.toLowerCase() || 'jpg';
+        const path = `${user.id}/avatar.${ext}`;
+        const response = await fetch(newAvatarUri);
+        const blob = await response.blob();
+
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(path, blob, { upsert: true, contentType: `image/${ext}` });
+
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+          updates.avatar_url = urlData.publicUrl;
+        }
+      }
+
+      const { error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      await refreshProfile();
+      setNewAvatarUri(null);
+      Alert.alert('Saved', 'Your profile has been updated.');
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Could not save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSignOut = () => {
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign Out', style: 'destructive', onPress: signOut },
+    ]);
+  };
 
   const renderContent = () => {
     switch (activeTab) {
       case 'profile':
-        return <ProfileTab data={profileData} setData={setProfileData} />;
+        return <ProfileTab data={profileData} setData={setProfileData} avatarUri={avatarUrl} onPickAvatar={pickAvatar} />;
+      case 'prompts':
+        return <PromptsTab prompts={prompts} setPrompts={setPrompts} />;
       case 'privacy':
         return <PrivacyTab data={privacyData} setData={setPrivacyData} />;
       case 'notifications':
         return <NotificationsTab data={notifData} setData={setNotifData} />;
       case 'events':
         return <EventsTab data={eventsData} setData={setEventsData} />;
-      case 'verification':
-        return <VerificationTab isVerified={isVerified} setIsVerified={setIsVerified} />;
       default:
         return null;
     }
@@ -537,6 +782,25 @@ export default function SettingsScreen({ navigation }) {
         keyboardShouldPersistTaps="handled"
       >
         {renderContent()}
+
+        {/* Save + Sign Out (shown on all tabs) */}
+        <TouchableOpacity
+          style={[s.saveBtn, saving && { opacity: 0.6 }]}
+          activeOpacity={0.8}
+          onPress={handleSave}
+          disabled={saving}
+        >
+          {saving ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <Text style={s.saveBtnText}>Save Changes</Text>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity style={s.signOutBtn} activeOpacity={0.7} onPress={handleSignOut}>
+          <Feather name="log-out" size={16} color="#ef4444" />
+          <Text style={s.signOutText}>Sign Out</Text>
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -559,11 +823,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     height: 50,
-  },
-  backLabel: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 14,
-    fontFamily: fonts.regular,
   },
 
   // Tab bar
@@ -605,6 +864,12 @@ const s = StyleSheet.create({
     fontSize: 26,
     fontFamily: fonts.semiBold,
     color: '#fff',
+    marginBottom: 6,
+  },
+  tabSubheading: {
+    fontSize: 14,
+    fontFamily: fonts.regular,
+    color: 'rgba(255,255,255,0.7)',
     marginBottom: 16,
   },
 
@@ -675,7 +940,7 @@ const s = StyleSheet.create({
     marginTop: 2,
   },
 
-  // Picker pills (for select-like options)
+  // Picker pills
   pickerGroup: {
     marginBottom: 8,
   },
@@ -701,13 +966,15 @@ const s = StyleSheet.create({
     color: '#fff',
   },
 
-  // Category grid
+  // Category / Interest grid
   categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
   categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
@@ -743,6 +1010,22 @@ const s = StyleSheet.create({
     fontFamily: fonts.semiBold,
   },
 
+  // Sign out
+  signOutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  signOutText: {
+    color: '#ef4444',
+    fontSize: 15,
+    fontFamily: fonts.medium,
+  },
+
   // Profile picture
   avatarRow: {
     flexDirection: 'row',
@@ -758,6 +1041,11 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: '#e5e7eb',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 80,
+    height: 80,
   },
   uploadBtn: {
     flexDirection: 'row',
@@ -774,113 +1062,112 @@ const s = StyleSheet.create({
     fontFamily: fonts.medium,
   },
 
-  // Verification — verified state
-  verifiedCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#7300ff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  verifiedTitle: {
-    fontSize: 22,
-    fontFamily: fonts.semiBold,
-    color: '#101828',
-    marginBottom: 6,
-  },
-  verifiedSub: {
-    fontSize: 14,
-    fontFamily: fonts.regular,
-    color: '#4a5565',
-    textAlign: 'center',
-    marginBottom: 14,
-  },
-  verifiedBadge: {
-    backgroundColor: '#7300ff',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 10,
-    marginBottom: 20,
-  },
-  verifiedBadgeText: {
-    color: '#fff',
-    fontSize: 14,
-    fontFamily: fonts.semiBold,
-  },
-  benefitsBox: {
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    paddingTop: 16,
-    width: '100%',
-  },
-  benefitsLabel: {
-    fontSize: 13,
-    fontFamily: fonts.semiBold,
-    color: '#4a5565',
-    marginBottom: 8,
-  },
-  benefitItem: {
-    fontSize: 13,
-    fontFamily: fonts.regular,
-    color: '#4a5565',
-    marginBottom: 4,
-  },
-
-  // Verification — unverified state
-  whyRow: {
+  // Club input
+  clubInputRow: {
     flexDirection: 'row',
-    gap: 14,
+    gap: 8,
+    alignItems: 'flex-end',
   },
-  whyIcon: {
+  addClubBtn: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: '#f3e8ff',
+    borderRadius: 10,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  whyTitle: {
-    fontSize: 16,
-    fontFamily: fonts.semiBold,
-    color: '#101828',
+  clubChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
+  },
+  clubChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#f3e8ff',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 16,
+  },
+  clubChipText: {
+    fontSize: 13,
+    fontFamily: fonts.medium,
+    color: colors.primary,
+  },
+
+  // Social edit
+  socialEditRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     marginBottom: 8,
   },
-  whyItem: {
-    fontSize: 14,
-    fontFamily: fonts.regular,
-    color: '#4a5565',
-    marginBottom: 4,
-  },
-  codeSentBanner: {
-    backgroundColor: '#f3e8ff',
-    padding: 14,
-    borderRadius: 10,
-    marginBottom: 12,
-    marginTop: 4,
-  },
-  codeSentText: {
-    fontSize: 14,
-    fontFamily: fonts.medium,
-    color: '#7300ff',
-  },
-  demoHint: {
-    fontSize: 12,
-    fontFamily: fonts.regular,
-    color: '#4a5565',
-    marginTop: 6,
-    marginBottom: 4,
-  },
-  secondaryBtn: {
-    paddingVertical: 14,
-    borderRadius: 10,
+  socialIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
     alignItems: 'center',
-    marginTop: 6,
+    justifyContent: 'center',
   },
-  secondaryBtnText: {
-    color: '#7300ff',
+
+  // Prompt editor
+  promptCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  addPromptBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.3)',
+    borderStyle: 'dashed',
+    marginBottom: 14,
+  },
+  addPromptBtnText: {
+    color: 'rgba(255,255,255,0.85)',
     fontSize: 15,
+    fontFamily: fonts.medium,
+  },
+  promptPickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#f3f4f6',
+  },
+  promptPickerText: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: fonts.regular,
+    color: '#101828',
+  },
+
+  // List item editor (for list-type prompts)
+  listItemRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  addListBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#f3e8ff',
+  },
+  addListBtnText: {
+    color: colors.primary,
+    fontSize: 14,
     fontFamily: fonts.medium,
   },
 });

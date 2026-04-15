@@ -19,9 +19,12 @@ import { Avatar } from '../../components/Avatar';
 import { Badge } from '../../components/Badge';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { GradientCard } from '../../components/GradientCard';
+import { EventImage } from '../../components/EventImage';
 import { fonts } from '../../theme/fonts';
 import { colors } from '../../theme/colors';
-import { EVENT as DEFAULT_EVENT_DETAIL, ATTENDEES, MUTUAL_CONNECTIONS, FRIENDS_GOING, GROUP_CHATS } from '../../data/mockEventDetail';
+import { useRSVP } from '../../hooks/useRSVP';
+import { useEventGroupChats } from '../../hooks/useGroupChats';
+import { EVENT as DEFAULT_EVENT_DETAIL, MUTUAL_CONNECTIONS, FRIENDS_GOING } from '../../data/mockEventDetail';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -140,10 +143,7 @@ function formatShortDate(dateString) {
 
 export default function EventDetailScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
-  const [isStarred, setIsStarred] = useState(false);
   const [markModalVisible, setMarkModalVisible] = useState(false);
-  const [rsvpStatus, setRsvpStatus] = useState(null); // null | 'going' | 'maybe'
-  const [isPublic, setIsPublic] = useState(true);
   const passedEvent = route?.params?.event;
   const event = {
     ...DEFAULT_EVENT_DETAIL,
@@ -159,8 +159,17 @@ export default function EventDetailScreen({ route, navigation }) {
       tags: Array.isArray(passedEvent.tags) && passedEvent.tags.length > 0 ? passedEvent.tags : DEFAULT_EVENT_DETAIL.tags,
       tickets: passedEvent.tickets,
       signup: passedEvent.signup,
+      source: passedEvent.source,
     } : {}),
   };
+
+  const {
+    rsvpStatus, isStarred, isPublic,
+    attendees: realAttendees, attendeeCount,
+    setRSVP, toggleStar, setPublic,
+  } = useRSVP(event.id);
+
+  const { chats: eventChats } = useEventGroupChats(event.id);
 
   const handleConfirmRsvp = () => {
     setMarkModalVisible(false);
@@ -181,7 +190,7 @@ export default function EventDetailScreen({ route, navigation }) {
         onBack={() => navigation.goBack()}
         right={
           <TouchableOpacity
-            onPress={() => setIsStarred((prev) => !prev)}
+            onPress={toggleStar}
             style={s.starBtn}
           >
             <Ionicons
@@ -200,7 +209,7 @@ export default function EventDetailScreen({ route, navigation }) {
       >
         {/* Banner */}
         <View style={s.banner}>
-          <Image source={{ uri: event.bannerImage }} style={StyleSheet.absoluteFill} />
+          <EventImage uri={event.bannerImage} source={event.source} />
           <LinearGradient
             colors={['rgba(0,0,0,0)', 'rgba(115,0,255,0.5)', 'rgba(115,0,255,0.85)']}
             style={StyleSheet.absoluteFill}
@@ -351,14 +360,14 @@ export default function EventDetailScreen({ route, navigation }) {
           <Card>
             <View style={s.goingHeader}>
               <Text style={s.goingTitle}>Who's Going</Text>
-              <Text style={s.goingCount}>{event.attendeeCount.toLocaleString()} attendees</Text>
+              <Text style={s.goingCount}>{attendeeCount || event.attendeeCount?.toLocaleString() || 0} attendees</Text>
             </View>
             <View style={s.attendeeGrid}>
-              {ATTENDEES.slice(0, 5).map((a) => (
+              {(realAttendees.length > 0 ? realAttendees : []).slice(0, 5).map((a) => (
                 <AttendeeCard
                   key={a.id}
                   attendee={a}
-                  onPress={a.userId ? () => navigation.navigate('UserProfile', { userId: a.userId }) : undefined}
+                  onPress={a.id ? () => navigation.navigate('UserProfile', { userId: a.id }) : undefined}
                 />
               ))}
             </View>
@@ -404,13 +413,16 @@ export default function EventDetailScreen({ route, navigation }) {
               <Text style={[s.cardTitle, { marginBottom: 0 }]}>Group Chats</Text>
             </View>
             <Text style={s.groupSubtext}>Connect with other fans attending the event</Text>
-            {GROUP_CHATS.map((group) => (
+            {(eventChats.length > 0 ? eventChats : []).map((group) => (
               <GroupChatRow
                 key={group.id}
                 group={group}
-                onPress={() => navigation.navigate('GroupChat', { groupId: group.id })}
+                onPress={() => navigation.navigate('GroupChat', { groupId: group.id, groupName: group.name })}
               />
             ))}
+            {eventChats.length === 0 && (
+              <Text style={s.groupSubtext}>No group chats yet for this event.</Text>
+            )}
           </Card>
         </View>
       </ScrollView>
@@ -440,7 +452,7 @@ export default function EventDetailScreen({ route, navigation }) {
               <TouchableOpacity
                 style={[s.rsvpOption, rsvpStatus === 'going' && s.rsvpOptionActive]}
                 activeOpacity={0.7}
-                onPress={() => setRsvpStatus('going')}
+                onPress={() => setRSVP('going')}
               >
                 <View style={[s.rsvpIconCircle, rsvpStatus === 'going' && s.rsvpIconCircleActive]}>
                   <Feather name="check" size={20} color={rsvpStatus === 'going' ? '#fff' : '#7300ff'} />
@@ -452,7 +464,7 @@ export default function EventDetailScreen({ route, navigation }) {
               <TouchableOpacity
                 style={[s.rsvpOption, rsvpStatus === 'maybe' && s.rsvpOptionMaybeActive]}
                 activeOpacity={0.7}
-                onPress={() => setRsvpStatus('maybe')}
+                onPress={() => setRSVP('maybe')}
               >
                 <View style={[s.rsvpIconCircle, rsvpStatus === 'maybe' && s.rsvpIconCircleMaybe]}>
                   <Feather name="help-circle" size={20} color={rsvpStatus === 'maybe' ? '#fff' : '#f59e0b'} />
@@ -469,7 +481,7 @@ export default function EventDetailScreen({ route, navigation }) {
               </View>
               <Switch
                 value={isPublic}
-                onValueChange={setIsPublic}
+                onValueChange={setPublic}
                 trackColor={{ false: '#e5e7eb', true: '#7300ff' }}
                 thumbColor="#fff"
               />
@@ -480,7 +492,7 @@ export default function EventDetailScreen({ route, navigation }) {
                 <TouchableOpacity
                   style={s.removeBtn}
                   activeOpacity={0.7}
-                  onPress={() => { setRsvpStatus(null); setMarkModalVisible(false); }}
+                  onPress={() => { setRSVP(null); setMarkModalVisible(false); }}
                 >
                   <Text style={s.removeBtnText}>Remove RSVP</Text>
                 </TouchableOpacity>

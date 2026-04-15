@@ -46,11 +46,12 @@ async function fetchEvents() {
     return { data: cachedEvents, error: null };
   }
 
-  const today = new Date().toISOString().split('T')[0];
+  const d = new Date();
+  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const { data, error } = await supabase
     .from('events')
     .select('id,title,date,time,location,attendees,category,background_image,tags,tickets,detail_type,ticket_url,price_min,price_max,source')
-    .gte('date', today)
+    .gt('date', today)
     .order('date', { ascending: true });
 
   if (!error && data) {

@@ -1,13 +1,17 @@
 import React from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, ActivityIndicator, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '../contexts/AuthContext';
 import { fonts } from '../theme/fonts';
 
+import LoginScreen from '../screens/auth/LoginScreen';
+import SignUpScreen from '../screens/auth/SignUpScreen';
+import OnboardingScreen from '../screens/auth/OnboardingScreen';
 import EventFeedScreen from '../screens/events/EventFeedScreen';
 import EventsScreen from '../screens/events/EventsScreen';
 import ChatsScreen from '../screens/chat/ChatsScreen';
@@ -20,6 +24,8 @@ import DirectMessageScreen from '../screens/chat/DirectMessageScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import UserProfileScreen from '../screens/profile/UserProfileScreen';
 import AllAttendeesScreen from '../screens/events/AllAttendeesScreen';
+import SavedEventsScreen from '../screens/events/SavedEventsScreen';
+import YourEventsScreen from '../screens/events/YourEventsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -92,18 +98,41 @@ function HomeTabs() {
 }
 
 export default function AppNavigator() {
+  const { session, loading, needsOnboarding } = useAuth();
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#7300ff' }}>
+        <ActivityIndicator size="large" color="#fff" />
+      </View>
+    );
+  }
+
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="MainTabs" component={HomeTabs} />
-        <Stack.Screen name="EventDetail" component={EventDetailScreen} />
-        <Stack.Screen name="Settings" component={SettingsScreen} />
-        <Stack.Screen name="GroupChat" component={GroupChatScreen} />
-        <Stack.Screen name="MatchGroupChat" component={MatchGroupChatScreen} />
-        <Stack.Screen name="DirectMessage" component={DirectMessageScreen} />
-        <Stack.Screen name="Notifications" component={NotificationsScreen} />
-        <Stack.Screen name="UserProfile" component={UserProfileScreen} />
-        <Stack.Screen name="AllAttendees" component={AllAttendeesScreen} />
+        {!session ? (
+          <>
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="SignUp" component={SignUpScreen} />
+          </>
+        ) : needsOnboarding ? (
+          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        ) : (
+          <>
+            <Stack.Screen name="MainTabs" component={HomeTabs} />
+            <Stack.Screen name="EventDetail" component={EventDetailScreen} />
+            <Stack.Screen name="Settings" component={SettingsScreen} />
+            <Stack.Screen name="GroupChat" component={GroupChatScreen} />
+            <Stack.Screen name="MatchGroupChat" component={MatchGroupChatScreen} />
+            <Stack.Screen name="DirectMessage" component={DirectMessageScreen} />
+            <Stack.Screen name="Notifications" component={NotificationsScreen} />
+            <Stack.Screen name="UserProfile" component={UserProfileScreen} />
+            <Stack.Screen name="AllAttendees" component={AllAttendeesScreen} />
+            <Stack.Screen name="SavedEvents" component={SavedEventsScreen} />
+            <Stack.Screen name="YourEvents" component={YourEventsScreen} />
+          </>
+        )}
       </Stack.Navigator>
     </NavigationContainer>
   );

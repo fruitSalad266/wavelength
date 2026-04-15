@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '../../components/Avatar';
 import { Badge } from '../../components/Badge';
 import { fonts } from '../../theme/fonts';
+import { useFriends } from '../../hooks/useFriends';
 import { USERS } from '../../data/mockUsers';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -45,6 +46,8 @@ export default function UserProfileScreen({ navigation, route }) {
   const user = USERS[userId];
   const [friendsExpanded, setFriendsExpanded] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
+  const { sendRequest, acceptRequest, removeFriend, getFriendship } = useFriends();
+  const friendship = getFriendship(userId);
 
   if (!user) {
     return (
@@ -153,10 +156,42 @@ export default function UserProfileScreen({ navigation, route }) {
 
         {/* Action buttons */}
         <View style={s.actionRow}>
-          <TouchableOpacity style={s.addFriendBtn} activeOpacity={0.8}>
-            <Feather name="user-plus" size={16} color="#fff" />
-            <Text style={s.addFriendText}>Add Friend</Text>
-          </TouchableOpacity>
+          {friendship?.status === 'accepted' ? (
+            <TouchableOpacity
+              style={[s.addFriendBtn, { backgroundColor: '#00ac9b' }]}
+              activeOpacity={0.8}
+              onPress={() => Alert.alert('Remove Friend', `Remove ${user.name} as a friend?`, [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Remove', style: 'destructive', onPress: () => removeFriend(userId) },
+              ])}
+            >
+              <Feather name="user-check" size={16} color="#fff" />
+              <Text style={s.addFriendText}>Friends</Text>
+            </TouchableOpacity>
+          ) : friendship?.status === 'pending' && friendship?.direction === 'incoming' ? (
+            <TouchableOpacity
+              style={[s.addFriendBtn, { backgroundColor: '#f59e0b' }]}
+              activeOpacity={0.8}
+              onPress={() => acceptRequest(userId)}
+            >
+              <Feather name="user-check" size={16} color="#fff" />
+              <Text style={s.addFriendText}>Accept Request</Text>
+            </TouchableOpacity>
+          ) : friendship?.status === 'pending' && friendship?.direction === 'outgoing' ? (
+            <TouchableOpacity
+              style={[s.addFriendBtn, { opacity: 0.6 }]}
+              activeOpacity={0.8}
+              onPress={() => removeFriend(userId)}
+            >
+              <Feather name="clock" size={16} color="#fff" />
+              <Text style={s.addFriendText}>Requested</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={s.addFriendBtn} activeOpacity={0.8} onPress={() => sendRequest(userId)}>
+              <Feather name="user-plus" size={16} color="#fff" />
+              <Text style={s.addFriendText}>Add Friend</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={s.messageBtn}
             activeOpacity={0.8}
