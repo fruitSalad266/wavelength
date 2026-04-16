@@ -14,7 +14,11 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.wavelength"
+      "bundleIdentifier": "com.mattcng.wavelength",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Wavelength needs access to your photos so you can choose a profile picture.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {

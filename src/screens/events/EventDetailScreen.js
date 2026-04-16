@@ -176,9 +176,7 @@ export default function EventDetailScreen({ route, navigation }) {
   };
 
   const getMatchedAttendees = () => {
-    // Take top 3–4 highest match scores to form a small squad
-    const sorted = ATTENDEES.slice().sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
-    return sorted.slice(0, 4);
+    return realAttendees.slice(0, 4);
   };
 
   return (

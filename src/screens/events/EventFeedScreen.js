@@ -14,9 +14,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { friendsAttending } from '../../data/mockEventFeed';
 import { useEvents } from '../../hooks/useEvents';
 import { useMyRSVPs } from '../../hooks/useRSVP';
+import { useRecommendedEvents } from '../../hooks/useRecommendedEvents';
 import { useAuth } from '../../contexts/AuthContext';
 import { Avatar } from '../../components/Avatar';
 import { Badge } from '../../components/Badge';
@@ -31,7 +31,20 @@ function formatDate(dateString) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function FriendEventCard({ event, friends, onPress, isStarred }) {
+function RecommendedEventCard({ event, friendsGoing, matchingInterests, onPress, isStarred }) {
+  const reasonText = (() => {
+    if (friendsGoing.length > 0) {
+      const names = friendsGoing.slice(0, 2).map((f) => f.name?.split(' ')[0]).filter(Boolean);
+      if (friendsGoing.length === 1) return `${names[0]} is going`;
+      if (friendsGoing.length === 2) return `${names[0]} & ${names[1]} are going`;
+      return `${names[0]}, ${names[1]} +${friendsGoing.length - 2} going`;
+    }
+    if (matchingInterests.length > 0) {
+      return `Because you like ${matchingInterests[0]}`;
+    }
+    return null;
+  })();
+
   return (
     <TouchableOpacity style={styles.friendCard} activeOpacity={0.85} onPress={onPress}>
       <EventImage uri={event.backgroundImage} source={event.source} style={styles.friendCardImage} />
@@ -39,31 +52,37 @@ function FriendEventCard({ event, friends, onPress, isStarred }) {
 
       <View style={styles.friendCardTop}>
         <Badge label={event.category} />
-        {isStarred && (
-          <Ionicons name="star" size={16} color="#fbbf24" />
-        )}
+        {isStarred && <Ionicons name="star" size={16} color="#fbbf24" />}
       </View>
 
       <View style={styles.friendCardBottom}>
-        <View style={styles.avatarRow}>
-          {friends.map((friend, index) => (
-            <Avatar
-              key={index}
-              uri={friend.avatar}
-              name={friend.name}
-              size={26}
-              style={{ marginLeft: index > 0 ? -8 : 0, borderWidth: 1.5, borderColor: '#fff' }}
-            />
-          ))}
-        </View>
+        {friendsGoing.length > 0 && (
+          <View style={styles.avatarRow}>
+            {friendsGoing.slice(0, 4).map((friend, index) => (
+              <Avatar
+                key={friend.id || index}
+                uri={friend.avatar}
+                name={friend.name}
+                size={26}
+                style={{ marginLeft: index > 0 ? -8 : 0, borderWidth: 1.5, borderColor: '#fff' }}
+              />
+            ))}
+          </View>
+        )}
         <Text style={styles.friendCardTitle}>{event.title}</Text>
+        {!!reasonText && (
+          <View style={styles.metaRow}>
+            <Feather
+              name={friendsGoing.length > 0 ? 'users' : 'heart'}
+              size={13}
+              color="rgba(255,255,255,0.9)"
+            />
+            <Text style={styles.metaText}>{reasonText}</Text>
+          </View>
+        )}
         <View style={styles.metaRow}>
           <Feather name="calendar" size={13} color="rgba(255,255,255,0.9)" />
           <Text style={styles.metaText}>{formatDate(event.date)}</Text>
-          <Feather name="users" size={13} color="rgba(255,255,255,0.9)" style={{ marginLeft: 12 }} />
-          <Text style={styles.metaText}>
-            {friends.length} friend{friends.length > 1 ? 's' : ''}
-          </Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -130,12 +149,14 @@ export default function EventFeedScreen({ navigation }) {
   const { profile } = useAuth();
   const { events: supabaseEvents, loading } = useEvents();
   const { goingEventIds, starredEventIds, refresh: refreshRSVPs } = useMyRSVPs();
+  const { recommendations, refresh: refreshRecommendations } = useRecommendedEvents({ limit: 5 });
 
   // Refresh RSVP data whenever this screen comes into focus
   useFocusEffect(
     useCallback(() => {
       refreshRSVPs();
-    }, [refreshRSVPs])
+      refreshRecommendations();
+    }, [refreshRSVPs, refreshRecommendations])
   );
 
   const today = getLocalToday();
@@ -253,19 +274,23 @@ export default function EventFeedScreen({ navigation }) {
           </View>
         )}
 
-        {/* Friends Attending (still mock for now) */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Events Your Friends Are Attending</Text>
-          {friendsAttending.map(({ event, friends }) => (
-            <FriendEventCard
-              key={event.id}
-              event={event}
-              friends={friends}
-              isStarred={starredEventIds.includes(event.id)}
-              onPress={() => navigation.navigate('EventDetail', { event })}
-            />
-          ))}
-        </View>
+        {/* Recommended for you */}
+        {recommendations.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Recommended for You</Text>
+            <Text style={styles.sectionSub}>Based on your interests and what friends are up to</Text>
+            {recommendations.map(({ event, friendsGoing, matchingInterests }) => (
+              <RecommendedEventCard
+                key={event.id}
+                event={event}
+                friendsGoing={friendsGoing}
+                matchingInterests={matchingInterests}
+                isStarred={starredEventIds.includes(event.id)}
+                onPress={() => navigation.navigate('EventDetail', { event })}
+              />
+            ))}
+          </View>
+        )}
 
         {/* Upcoming Events */}
         <View style={styles.section}>
@@ -313,6 +338,7 @@ const styles = StyleSheet.create({
   section: { marginTop: 24 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
   sectionTitle: { color: '#fff', fontSize: 20, fontFamily: fonts.semiBold, marginBottom: 4 },
+  sectionSub: { color: '#c4dcff', fontSize: 13, fontFamily: fonts.regular, marginBottom: 10 },
   welcomeTitle: { color: '#fff', fontSize: 30, fontFamily: fonts.semiBold, marginBottom: 6 },
   welcomeSub: { color: '#c4dcff', fontSize: 16, fontFamily: fonts.regular },
   horizontalList: { gap: 14, paddingRight: 20 },

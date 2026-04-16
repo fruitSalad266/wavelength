@@ -75,41 +75,6 @@ export default function MatchGroupChatScreen({ navigation, route }) {
   const commonMajorBadges = buildCommonBadges(majors);
   const commonYearBadges = buildCommonBadges(years);
 
-  const _unusedInitialMessages = [
-    {
-      id: '1',
-      senderId: members[0]?.id || '1',
-      senderName: members[0]?.name || 'Sarah Mitchell',
-      senderAvatar: members[0]?.avatar || fallbackMembers[0].avatar,
-      text: "So excited for tonight! Anyone want to meet up near the merch stand before the show?",
-      timestamp: '2h ago',
-    },
-    {
-      id: '2',
-      senderId: members[1]?.id || '2',
-      senderName: members[1]?.name || 'Michael Chen',
-      senderAvatar: members[1]?.avatar || fallbackMembers[1].avatar,
-      text: 'Yes! I was thinking of getting there around 6:15 so we have time to grab drinks.',
-      timestamp: '1h ago',
-    },
-    {
-      id: '3',
-      senderId: members[2]?.id || '3',
-      senderName: members[2]?.name || 'Emma Rodriguez',
-      senderAvatar: members[2]?.avatar || fallbackMembers[2].avatar,
-      text: 'I’m in! I’ll be wearing a purple Huskies hoodie if you want to spot me 👀',
-      timestamp: '45m ago',
-    },
-    {
-      id: '4',
-      senderId: 'me',
-      senderName: 'You',
-      senderAvatar: '',
-      text: 'Love this squad. Let’s meet by the north entrance right after doors open?',
-      timestamp: 'Just now',
-    },
-  ];
-
   const initialMsgs = buildSquadInitialMessages(members, fallbackMembers);
   const [messages, setMessages] = useState(initialMsgs);
   const [input, setInput] = useState('');
