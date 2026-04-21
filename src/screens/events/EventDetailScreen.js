@@ -24,6 +24,8 @@ import { fonts } from '../../theme/fonts';
 import { colors } from '../../theme/colors';
 import { useRSVP } from '../../hooks/useRSVP';
 import { useEventGroupChats } from '../../hooks/useGroupChats';
+import { useAuth } from '../../contexts/AuthContext';
+import { calculateMatchScore } from '../../utils/matchScore';
 import { EVENT as DEFAULT_EVENT_DETAIL, MUTUAL_CONNECTIONS, FRIENDS_GOING } from '../../data/mockEventDetail';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -61,10 +63,11 @@ function MutualPersonCard({ person }) {
 }
 
 function AttendeeCard({ attendee, onPress }) {
-  const Wrapper = attendee.userId ? TouchableOpacity : View;
-  const wrapperProps = attendee.userId ? { activeOpacity: 0.7, onPress } : {};
+  const Wrapper = attendee.id ? TouchableOpacity : View;
+  const wrapperProps = attendee.id ? { activeOpacity: 0.7, onPress } : {};
+  const isMatch = attendee.matchScore >= 80;
 
-  if (attendee.isGoodMatch) {
+  if (isMatch) {
     return (
       <Wrapper style={[s.attendeeCard, s.attendeeCardMatch]} {...wrapperProps}>
         <View style={s.attendeeAvatarWrap}>
@@ -75,7 +78,7 @@ function AttendeeCard({ attendee, onPress }) {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={s.attendeeName} numberOfLines={1}>{attendee.name}</Text>
-          <Text style={s.attendeeSub}>94% Match</Text>
+          <Text style={s.attendeeSub}>{attendee.matchScore}% Match</Text>
         </View>
       </Wrapper>
     );
@@ -143,6 +146,7 @@ function formatShortDate(dateString) {
 
 export default function EventDetailScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
+  const { profile: myProfile } = useAuth();
   const [markModalVisible, setMarkModalVisible] = useState(false);
   const passedEvent = route?.params?.event;
   const event = {
@@ -175,8 +179,14 @@ export default function EventDetailScreen({ route, navigation }) {
     setMarkModalVisible(false);
   };
 
+  const scoredAttendees = realAttendees.map((a) => {
+    if (!myProfile || !a.interests) return { ...a, matchScore: 0 };
+    const { score } = calculateMatchScore(myProfile, a);
+    return { ...a, matchScore: score };
+  });
+
   const getMatchedAttendees = () => {
-    return realAttendees.slice(0, 4);
+    return scoredAttendees.slice(0, 4);
   };
 
   return (
@@ -361,7 +371,7 @@ export default function EventDetailScreen({ route, navigation }) {
               <Text style={s.goingCount}>{attendeeCount || event.attendeeCount?.toLocaleString() || 0} attendees</Text>
             </View>
             <View style={s.attendeeGrid}>
-              {(realAttendees.length > 0 ? realAttendees : []).slice(0, 5).map((a) => (
+              {scoredAttendees.slice(0, 5).map((a) => (
                 <AttendeeCard
                   key={a.id}
                   attendee={a}

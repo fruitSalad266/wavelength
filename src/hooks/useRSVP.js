@@ -55,7 +55,7 @@ export function useRSVP(eventId) {
       .from('event_rsvps')
       .select(`
         status,
-        user:profiles!event_rsvps_user_id_fkey(id, full_name, avatar_url)
+        user:profiles!event_rsvps_user_id_fkey(id, full_name, avatar_url, interests, major, class_year, extras)
       `)
       .eq('event_id', eventId)
       .eq('is_public', true);
@@ -65,6 +65,10 @@ export function useRSVP(eventId) {
       name: row.user?.full_name,
       avatar: row.user?.avatar_url,
       status: row.status,
+      interests: row.user?.interests,
+      major: row.user?.major,
+      class_year: row.user?.class_year,
+      extras: row.user?.extras,
     }));
     setAttendees(list);
     setAttendeeCount(list.filter((a) => a.status === 'going').length);
