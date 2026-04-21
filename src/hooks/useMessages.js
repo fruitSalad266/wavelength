@@ -189,7 +189,19 @@ export function useDirectMessageThreads() {
 
   useEffect(() => {
     fetchThreads();
-  }, [fetchThreads]);
+
+    if (!user) return;
+    const channel = supabase
+      .channel(`dm-threads-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `recipient_id=eq.${user.id}` },
+        () => fetchThreads()
+      )
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
+  }, [fetchThreads, user]);
 
   return { threads, loading, refresh: fetchThreads };
 }

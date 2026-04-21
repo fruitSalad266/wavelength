@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   FlatList,
-  Animated,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
@@ -17,80 +17,63 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '../../components/Avatar';
 import { Badge } from '../../components/Badge';
 import { fonts } from '../../theme/fonts';
-import { GROUP_INFO, MEMBERS, INITIAL_MESSAGES, YEARS, MAJORS } from '../../data/mockGroupChat';
+import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
+import { useMessages } from '../../hooks/useMessages';
+import { useGroupChat } from '../../hooks/useGroupChats';
+
+function formatMsgTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const now = new Date();
+  if (now - d < 60000) return 'Just now';
+  if (d.toDateString() === now.toDateString())
+    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
 
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
 
-function ChatBubble({ msg, isMe }) {
+function ChatBubble({ msg }) {
   return (
-    <View style={[s.bubbleWrap, isMe && s.bubbleWrapMe]}>
-      <View style={[s.bubbleRow, isMe && s.bubbleRowMe]}>
-        {!isMe && (
+    <View style={[s.bubbleWrap, msg.isMine && s.bubbleWrapMe]}>
+      <View style={[s.bubbleRow, msg.isMine && s.bubbleRowMe]}>
+        {!msg.isMine && (
           <Avatar uri={msg.senderAvatar} name={msg.senderName} size={30} style={{ borderWidth: 0 }} />
         )}
         <View style={s.bubbleContent}>
-          {!isMe && (
-            <View style={s.senderRow}>
-              <Text style={s.bubbleSender}>{msg.senderName}</Text>
-              {msg.isFriend && (
-                <View style={s.friendTag}>
-                  <Feather name="user-check" size={9} color="#00ac9b" />
-                  <Text style={s.friendTagText}>Friend</Text>
-                </View>
-              )}
-            </View>
-          )}
-          <View style={[s.bubble, isMe ? s.bubbleMe : s.bubbleOther]}>
-            <Text style={[s.bubbleText, isMe && s.bubbleTextMe]}>{msg.text}</Text>
+          {!msg.isMine && <Text style={s.bubbleSender}>{msg.senderName}</Text>}
+          <View style={[s.bubble, msg.isMine ? s.bubbleMe : s.bubbleOther]}>
+            <Text style={[s.bubbleText, msg.isMine && s.bubbleTextMe]}>{msg.body}</Text>
           </View>
-          <Text style={[s.bubbleTime, isMe && { textAlign: 'right' }]}>{msg.timestamp}</Text>
+          <Text style={[s.bubbleTime, msg.isMine && { textAlign: 'right' }]}>
+            {formatMsgTime(msg.createdAt)}
+          </Text>
         </View>
       </View>
     </View>
   );
 }
 
-function MemberCard({ member }) {
+function MemberCard({ member, onMessage }) {
   return (
-    <View style={[s.memberCard, member.isFriend && s.memberCardFriend]}>
+    <View style={s.memberCard}>
       <View style={s.memberRow}>
-        <View style={s.memberAvatarWrap}>
-          <Avatar uri={member.avatar} name={member.name} size={50} style={{ borderColor: member.isFriend ? '#00ac9b' : '#7300ff' }} />
-          {member.isVerified && (
-            <View style={s.verifiedDot}>
-              <Feather name="check" size={9} color="#fff" />
-            </View>
-          )}
-        </View>
+        <Avatar uri={member.avatar} name={member.name} size={50} style={{ borderColor: '#7300ff' }} />
         <View style={s.memberInfo}>
-          <View style={s.memberNameRow}>
-            <Text style={s.memberName} numberOfLines={1}>{member.name}</Text>
-            {member.isFriend && (
-              <View style={s.friendBadge}>
-                <Text style={s.friendBadgeText}>Friend</Text>
+          <Text style={s.memberName} numberOfLines={1}>{member.name}</Text>
+          {member.major ? <Text style={s.memberMajor}>{member.major}</Text> : null}
+          {member.classYear ? (
+            <View style={s.memberBadges}>
+              <View style={s.yearBadge}>
+                <Text style={s.yearBadgeText}>Class of {member.classYear}</Text>
               </View>
-            )}
-          </View>
-          {member.major && <Text style={s.memberMajor}>{member.major}</Text>}
-          <View style={s.memberBadges}>
-            <View style={s.yearBadge}>
-              <Text style={s.yearBadgeText}>{member.year}</Text>
             </View>
-            {member.isVerified && (
-              <View style={s.verifiedBadgeSmall}>
-                <Text style={s.verifiedBadgeSmallText}>Verified</Text>
-              </View>
-            )}
-          </View>
-          {member.mutualFriends > 0 && (
-            <Text style={s.memberMutual}>
-              {member.mutualFriends} mutual friend{member.mutualFriends > 1 ? 's' : ''}
-            </Text>
-          )}
+          ) : null}
         </View>
-        <TouchableOpacity style={s.msgBtn}>
+        <TouchableOpacity style={s.msgBtn} onPress={onMessage}>
           <Text style={s.msgBtnText}>Message</Text>
         </TouchableOpacity>
       </View>
@@ -102,52 +85,99 @@ function MemberCard({ member }) {
 // Main screen
 // ---------------------------------------------------------------------------
 
-export default function GroupChatScreen({ navigation }) {
+export default function GroupChatScreen({ navigation, route }) {
+  const { groupId } = route?.params || {};
+  const { user, profile: myProfile } = useAuth();
   const insets = useSafeAreaInsets();
-  const [view, setView] = useState('chat');
-  const [hasJoined, setHasJoined] = useState(false);
-  const [showOverview, setShowOverview] = useState(false);
-  const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState(INITIAL_MESSAGES);
-  const scrollRef = useRef(null);
 
-  // Filters for overview members
+  const { group, members, isMember, loading: groupLoading, join } = useGroupChat(groupId);
+  const { messages, loading: msgsLoading, send } = useMessages({ groupChatId: groupId });
+
+  const [view, setView] = useState('chat');
+  const [showOverview, setShowOverview] = useState(false);
+  const [messageText, setMessageText] = useState('');
+  const [anyoneTyping, setAnyoneTyping] = useState(false);
+
+  const scrollRef = useRef(null);
+  const typingChannelRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+  const sendTypingRef = useRef(null);
+
+  // Derived filter options from real members
+  const classYears = useMemo(
+    () => ['All', ...Array.from(new Set(members.map((m) => m.classYear).filter(Boolean))).sort()],
+    [members]
+  );
+  const majors = useMemo(
+    () => ['All', ...Array.from(new Set(members.map((m) => m.major).filter(Boolean))).sort()],
+    [members]
+  );
   const [filterYear, setFilterYear] = useState('All');
   const [filterMajor, setFilterMajor] = useState('All');
-  const [sortByMutual, setSortByMutual] = useState(false);
 
-  const getFilteredMembers = () => {
-    let filtered = [...MEMBERS];
-    if (filterYear !== 'All') filtered = filtered.filter((m) => m.year === filterYear);
-    if (filterMajor !== 'All') filtered = filtered.filter((m) => m.major === filterMajor);
-    if (sortByMutual) filtered.sort((a, b) => (b.mutualFriends || 0) - (a.mutualFriends || 0));
-    return filtered;
+  const filteredMembers = useMemo(() => {
+    let list = [...members];
+    if (filterYear !== 'All') list = list.filter((m) => m.classYear === filterYear);
+    if (filterMajor !== 'All') list = list.filter((m) => m.major === filterMajor);
+    return list;
+  }, [members, filterYear, filterMajor]);
+
+  // Typing indicator channel
+  useEffect(() => {
+    if (!groupId) return;
+    const ch = supabase
+      .channel(`typing-group-${groupId}`)
+      .on('broadcast', { event: 'typing' }, ({ payload }) => {
+        if (payload.userId === user?.id) return;
+        setAnyoneTyping(true);
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = setTimeout(() => setAnyoneTyping(false), 4000);
+      })
+      .subscribe();
+    typingChannelRef.current = ch;
+    return () => {
+      supabase.removeChannel(ch);
+      clearTimeout(typingTimeoutRef.current);
+      clearTimeout(sendTypingRef.current);
+    };
+  }, [groupId, user?.id]);
+
+  const handleTextChange = (text) => {
+    setMessageText(text);
+    clearTimeout(sendTypingRef.current);
+    sendTypingRef.current = setTimeout(() => {
+      typingChannelRef.current?.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { userId: user?.id },
+      });
+    }, 500);
   };
 
-  const handleSend = () => {
-    if (!message.trim()) return;
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        senderId: 'me',
-        senderName: 'You',
-        senderAvatar: '',
-        text: message.trim(),
-        timestamp: 'Just now',
-      },
-    ]);
-    setMessage('');
+  const handleSend = async () => {
+    if (!messageText.trim()) return;
+    const text = messageText.trim();
+    setMessageText('');
+    await send(text);
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   };
 
-  // ------- Pre-join: full group header with join button -------
-  if (!hasJoined) {
+  if (groupLoading) {
     return (
-      <KeyboardAvoidingView
-        style={s.root}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <View style={[s.root, { alignItems: 'center', justifyContent: 'center' }]}>
+        <LinearGradient colors={['#7300ff', '#00ac9b']} style={StyleSheet.absoluteFill} />
+        <ActivityIndicator size="large" color="#fff" />
+      </View>
+    );
+  }
+
+  const groupName = group?.name || route?.params?.groupName || 'Group Chat';
+  const groupIcon = group?.icon || '💬';
+
+  // ------- Pre-join -------
+  if (!isMember) {
+    return (
+      <KeyboardAvoidingView style={s.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <LinearGradient colors={['#7300ff', '#00ac9b']} style={StyleSheet.absoluteFill} />
 
         <View style={[s.header, { paddingTop: insets.top }]}>
@@ -160,24 +190,26 @@ export default function GroupChatScreen({ navigation }) {
           <LinearGradient colors={['#7300ff', '#00ac9b']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.fullGroupHeader}>
             <View style={s.groupTopRow}>
               <View style={s.groupEmojiCircle}>
-                <Text style={s.groupEmoji}>{GROUP_INFO.icon}</Text>
+                <Text style={s.groupEmoji}>{groupIcon}</Text>
               </View>
               <View style={s.groupMeta}>
-                <Text style={s.groupName} numberOfLines={2}>{GROUP_INFO.name}</Text>
-                <Badge
-                  label="Verified UW Students"
-                  style={{ backgroundColor: '#fff', marginBottom: 4, alignSelf: 'flex-start' }}
-                  textStyle={{ color: '#7300ff', fontFamily: fonts.semiBold }}
-                />
-                <Text style={s.groupDesc}>{GROUP_INFO.description}</Text>
+                <Text style={s.groupName} numberOfLines={2}>{groupName}</Text>
+                {group?.isVerified && (
+                  <Badge
+                    label="Verified UW Students"
+                    style={{ backgroundColor: '#fff', marginBottom: 4, alignSelf: 'flex-start' }}
+                    textStyle={{ color: '#7300ff', fontFamily: fonts.semiBold }}
+                  />
+                )}
+                {group?.description ? <Text style={s.groupDesc}>{group.description}</Text> : null}
                 <View style={s.groupMemberCount}>
                   <Feather name="users" size={13} color="#fff" />
-                  <Text style={s.groupMemberText}>{GROUP_INFO.memberCount} members</Text>
+                  <Text style={s.groupMemberText}>{group?.memberCount || 0} members</Text>
                 </View>
               </View>
             </View>
 
-            <TouchableOpacity style={s.joinBtnLarge} activeOpacity={0.8} onPress={() => setHasJoined(true)}>
+            <TouchableOpacity style={s.joinBtnLarge} activeOpacity={0.8} onPress={join}>
               <Feather name="user-plus" size={15} color="#7300ff" />
               <Text style={s.joinBtnLargeText}>Join Group</Text>
             </TouchableOpacity>
@@ -187,7 +219,7 @@ export default function GroupChatScreen({ navigation }) {
                 <Text style={[s.tabText, view === 'chat' && s.tabTextActive]}>Chat</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[s.tab, view === 'members' && s.tabActive]} onPress={() => setView('members')}>
-                <Text style={[s.tabText, view === 'members' && s.tabTextActive]}>Members ({MEMBERS.length})</Text>
+                <Text style={[s.tabText, view === 'members' && s.tabTextActive]}>Members ({members.length})</Text>
               </TouchableOpacity>
             </View>
           </LinearGradient>
@@ -201,13 +233,11 @@ export default function GroupChatScreen({ navigation }) {
                 showsVerticalScrollIndicator={false}
                 onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
               >
-                {messages.map((msg) => (
-                  <ChatBubble key={msg.id} msg={msg} isMe={msg.senderId === 'me'} />
-                ))}
+                {messages.map((msg) => <ChatBubble key={msg.id} msg={msg} />)}
               </ScrollView>
               <View style={[s.joinPrompt, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-                <Text style={s.joinPromptText}>Join the group to start chatting with other UW students</Text>
-                <TouchableOpacity style={s.joinBtnInline} activeOpacity={0.8} onPress={() => setHasJoined(true)}>
+                <Text style={s.joinPromptText}>Join the group to start chatting</Text>
+                <TouchableOpacity style={s.joinBtnInline} activeOpacity={0.8} onPress={join}>
                   <Feather name="user-plus" size={15} color="#fff" />
                   <Text style={s.joinBtnInlineText}>Join Group</Text>
                 </TouchableOpacity>
@@ -215,12 +245,17 @@ export default function GroupChatScreen({ navigation }) {
             </View>
           ) : (
             <FlatList
-              data={MEMBERS}
+              data={members}
               keyExtractor={(item) => item.id}
               style={s.membersList}
               contentContainerStyle={[s.membersContent, { paddingBottom: insets.bottom + 16 }]}
               showsVerticalScrollIndicator={false}
-              renderItem={({ item }) => <MemberCard member={item} />}
+              renderItem={({ item }) => (
+                <MemberCard
+                  member={item}
+                  onMessage={() => navigation.navigate('DirectMessage', { userId: item.id, userName: item.name })}
+                />
+              )}
             />
           )}
         </View>
@@ -228,35 +263,29 @@ export default function GroupChatScreen({ navigation }) {
     );
   }
 
-  // ------- Post-join: compact header, tappable for overview -------
+  // ------- Post-join -------
   return (
-    <KeyboardAvoidingView
-      style={s.root}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <KeyboardAvoidingView style={s.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <LinearGradient colors={['#7300ff', '#00ac9b']} style={StyleSheet.absoluteFill} />
 
-      {/* Compact header */}
       <View style={[s.compactHeader, { paddingTop: insets.top }]}>
         <View style={s.compactHeaderInner}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={s.compactBackBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </TouchableOpacity>
-
           <TouchableOpacity style={s.compactCenter} activeOpacity={0.7} onPress={() => setShowOverview(true)}>
             <View style={s.compactEmojiCircle}>
-              <Text style={s.compactEmoji}>{GROUP_INFO.icon}</Text>
+              <Text style={s.compactEmoji}>{groupIcon}</Text>
             </View>
             <View style={s.compactInfo}>
-              <Text style={s.compactName} numberOfLines={1}>{GROUP_INFO.name}</Text>
-              <Text style={s.compactSub}>{GROUP_INFO.memberCount} members</Text>
+              <Text style={s.compactName} numberOfLines={1}>{groupName}</Text>
+              <Text style={s.compactSub}>{group?.memberCount || members.length} members</Text>
             </View>
             <Feather name="chevron-right" size={18} color="rgba(255,255,255,0.6)" />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Overview panel */}
       {showOverview ? (
         <View style={s.cardWrap}>
           <LinearGradient colors={['#7300ff', '#00ac9b']} style={StyleSheet.absoluteFill} />
@@ -265,30 +294,30 @@ export default function GroupChatScreen({ navigation }) {
             contentContainerStyle={[s.overviewContent, { paddingBottom: insets.bottom + 24 }]}
             showsVerticalScrollIndicator={false}
           >
-            {/* Group overview header */}
             <View style={s.overviewTop}>
               <View style={s.overviewEmojiCircle}>
-                <Text style={s.overviewEmoji}>{GROUP_INFO.icon}</Text>
+                <Text style={s.overviewEmoji}>{groupIcon}</Text>
               </View>
-              <Text style={s.overviewName}>{GROUP_INFO.name}</Text>
-              <Badge
-                label="Verified UW Students"
-                style={{ backgroundColor: 'rgba(255,255,255,0.2)', marginBottom: 10, alignSelf: 'center' }}
-                textStyle={{ color: '#fff', fontFamily: fonts.semiBold }}
-              />
-              <Text style={s.overviewDesc}>{GROUP_INFO.description}</Text>
+              <Text style={s.overviewName}>{groupName}</Text>
+              {group?.isVerified && (
+                <Badge
+                  label="Verified UW Students"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.2)', marginBottom: 10, alignSelf: 'center' }}
+                  textStyle={{ color: '#fff', fontFamily: fonts.semiBold }}
+                />
+              )}
+              {group?.description ? <Text style={s.overviewDesc}>{group.description}</Text> : null}
               <View style={s.overviewMemberCount}>
                 <Feather name="users" size={14} color="rgba(255,255,255,0.8)" />
-                <Text style={s.overviewMemberText}>{GROUP_INFO.memberCount} members</Text>
+                <Text style={s.overviewMemberText}>{group?.memberCount || members.length} members</Text>
               </View>
             </View>
 
-            {/* Filters */}
             <View style={s.filtersCard}>
               <View style={s.filterRow}>
                 <Text style={s.filterLabel}>Year</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterPills}>
-                  {YEARS.map((yr) => (
+                  {classYears.map((yr) => (
                     <TouchableOpacity
                       key={yr}
                       style={[s.filterPill, filterYear === yr && s.filterPillActive]}
@@ -302,7 +331,7 @@ export default function GroupChatScreen({ navigation }) {
               <View style={s.filterRow}>
                 <Text style={s.filterLabel}>Major</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterPills}>
-                  {MAJORS.map((mj) => (
+                  {majors.map((mj) => (
                     <TouchableOpacity
                       key={mj}
                       style={[s.filterPill, filterMajor === mj && s.filterPillActive]}
@@ -313,26 +342,22 @@ export default function GroupChatScreen({ navigation }) {
                   ))}
                 </ScrollView>
               </View>
-              <TouchableOpacity
-                style={[s.sortBtn, sortByMutual && s.sortBtnActive]}
-                onPress={() => setSortByMutual(!sortByMutual)}
-              >
-                <Feather name="arrow-down" size={14} color={sortByMutual ? '#fff' : '#7300ff'} />
-                <Text style={[s.sortBtnText, sortByMutual && s.sortBtnTextActive]}>Sort by mutual friends</Text>
-              </TouchableOpacity>
             </View>
 
-            {/* Members section */}
             <View style={s.overviewMembersSection}>
-              <Text style={s.overviewMembersTitle}>
-                Members ({getFilteredMembers().length})
-              </Text>
-              {getFilteredMembers().map((member) => (
-                <MemberCard key={member.id} member={member} />
+              <Text style={s.overviewMembersTitle}>Members ({filteredMembers.length})</Text>
+              {filteredMembers.map((member) => (
+                <MemberCard
+                  key={member.id}
+                  member={member}
+                  onMessage={() => {
+                    setShowOverview(false);
+                    navigation.navigate('DirectMessage', { userId: member.id, userName: member.name });
+                  }}
+                />
               ))}
             </View>
 
-            {/* Back to chat button */}
             <TouchableOpacity style={s.backToChatBtn} activeOpacity={0.8} onPress={() => setShowOverview(false)}>
               <Feather name="message-circle" size={16} color="#7300ff" />
               <Text style={s.backToChatText}>Back to Chat</Text>
@@ -341,7 +366,6 @@ export default function GroupChatScreen({ navigation }) {
         </View>
       ) : (
         <View style={s.cardWrap}>
-          {/* Chat messages */}
           <ScrollView
             ref={scrollRef}
             style={s.messagesScroll}
@@ -349,17 +373,23 @@ export default function GroupChatScreen({ navigation }) {
             showsVerticalScrollIndicator={false}
             onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
           >
-            {messages.map((msg) => (
-              <ChatBubble key={msg.id} msg={msg} isMe={msg.senderId === 'me'} />
-            ))}
+            {msgsLoading ? (
+              <ActivityIndicator color="#7300ff" style={{ marginTop: 40 }} />
+            ) : (
+              messages.map((msg) => <ChatBubble key={msg.id} msg={msg} />)
+            )}
+            {anyoneTyping && (
+              <View style={s.typingWrap}>
+                <Text style={s.typingText}>Someone is typing...</Text>
+              </View>
+            )}
           </ScrollView>
 
-          {/* Input bar */}
           <View style={[s.inputBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
             <TextInput
               style={s.textInput}
-              value={message}
-              onChangeText={setMessage}
+              value={messageText}
+              onChangeText={handleTextChange}
               placeholder="Type your message..."
               placeholderTextColor="#9ca3af"
               returnKeyType="send"
@@ -382,7 +412,6 @@ export default function GroupChatScreen({ navigation }) {
 const s = StyleSheet.create({
   root: { flex: 1 },
 
-  // Shared header
   header: {
     backgroundColor: 'rgba(255,255,255,0.25)',
     paddingHorizontal: 20,
@@ -393,20 +422,14 @@ const s = StyleSheet.create({
     gap: 8,
     height: 50,
   },
-  backLabel: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 14,
-    fontFamily: fonts.regular,
-  },
 
-  // Card wrapper
   cardWrap: {
     flex: 1,
     backgroundColor: 'rgba(249,250,251,0.92)',
     overflow: 'hidden',
   },
 
-  // ===== PRE-JOIN: Full group header =====
+  // ===== PRE-JOIN =====
   fullGroupHeader: {
     padding: 18,
     paddingBottom: 12,
@@ -424,12 +447,8 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  groupEmoji: {
-    fontSize: 28,
-  },
-  groupMeta: {
-    flex: 1,
-  },
+  groupEmoji: { fontSize: 28 },
+  groupMeta: { flex: 1 },
   groupName: {
     color: '#fff',
     fontSize: 20,
@@ -468,7 +487,6 @@ const s = StyleSheet.create({
     fontFamily: fonts.semiBold,
   },
 
-  // Tabs (pre-join)
   tabBar: {
     flexDirection: 'row',
     backgroundColor: 'rgba(255,255,255,0.2)',
@@ -481,19 +499,14 @@ const s = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
   },
-  tabActive: {
-    backgroundColor: '#fff',
-  },
+  tabActive: { backgroundColor: '#fff' },
   tabText: {
     color: '#fff',
     fontSize: 14,
     fontFamily: fonts.medium,
   },
-  tabTextActive: {
-    color: '#7300ff',
-  },
+  tabTextActive: { color: '#7300ff' },
 
-  // Chat area
   chatArea: {
     flex: 1,
     backgroundColor: '#f9fafb',
@@ -507,7 +520,6 @@ const s = StyleSheet.create({
     gap: 12,
   },
 
-  // Join prompt (pre-join, bottom of chat)
   joinPrompt: {
     alignItems: 'center',
     paddingHorizontal: 24,
@@ -539,7 +551,7 @@ const s = StyleSheet.create({
     fontFamily: fonts.semiBold,
   },
 
-  // ===== POST-JOIN: Compact header =====
+  // ===== POST-JOIN: compact header =====
   compactHeader: {
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -572,12 +584,8 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  compactEmoji: {
-    fontSize: 17,
-  },
-  compactInfo: {
-    flex: 1,
-  },
+  compactEmoji: { fontSize: 17 },
+  compactInfo: { flex: 1 },
   compactName: {
     color: '#fff',
     fontSize: 15,
@@ -590,12 +598,8 @@ const s = StyleSheet.create({
   },
 
   // ===== Overview panel =====
-  overviewScroll: {
-    flex: 1,
-  },
-  overviewContent: {
-    padding: 20,
-  },
+  overviewScroll: { flex: 1 },
+  overviewContent: { padding: 20 },
   overviewTop: {
     alignItems: 'center',
     marginBottom: 24,
@@ -609,9 +613,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 14,
   },
-  overviewEmoji: {
-    fontSize: 36,
-  },
+  overviewEmoji: { fontSize: 36 },
   overviewName: {
     fontSize: 22,
     fontFamily: fonts.semiBold,
@@ -638,16 +640,13 @@ const s = StyleSheet.create({
     color: 'rgba(255,255,255,0.8)',
   },
 
-  // Filters card
   filtersCard: {
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: 12,
     padding: 14,
     marginBottom: 20,
   },
-  filterRow: {
-    marginBottom: 12,
-  },
+  filterRow: { marginBottom: 12 },
   filterLabel: {
     fontSize: 12,
     fontFamily: fonts.semiBold,
@@ -666,43 +665,15 @@ const s = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.15)',
   },
-  filterPillActive: {
-    backgroundColor: '#fff',
-  },
+  filterPillActive: { backgroundColor: '#fff' },
   filterPillText: {
     fontSize: 12,
     fontFamily: fonts.medium,
     color: 'rgba(255,255,255,0.9)',
   },
-  filterPillTextActive: {
-    color: '#7300ff',
-  },
-  sortBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    marginTop: 4,
-  },
-  sortBtnActive: {
-    backgroundColor: '#7300ff',
-  },
-  sortBtnText: {
-    fontSize: 12,
-    fontFamily: fonts.medium,
-    color: 'rgba(255,255,255,0.9)',
-  },
-  sortBtnTextActive: {
-    color: '#fff',
-  },
+  filterPillTextActive: { color: '#7300ff' },
 
-  // Overview members section
-  overviewMembersSection: {
-    marginBottom: 20,
-  },
+  overviewMembersSection: { marginBottom: 20 },
   overviewMembersTitle: {
     fontSize: 18,
     fontFamily: fonts.semiBold,
@@ -710,7 +681,6 @@ const s = StyleSheet.create({
     marginBottom: 12,
   },
 
-  // Back to chat button
   backToChatBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -726,7 +696,7 @@ const s = StyleSheet.create({
     fontFamily: fonts.semiBold,
   },
 
-  // ===== Input bar (post-join) =====
+  // ===== Input bar =====
   inputBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -758,29 +728,32 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
 
+  // ===== Typing indicator =====
+  typingWrap: { paddingHorizontal: 4, paddingBottom: 4 },
+  typingText: {
+    fontSize: 12,
+    fontFamily: fonts.regular,
+    color: '#9ca3af',
+    fontStyle: 'italic',
+  },
+
   // ===== Bubbles =====
-  bubbleWrap: {
-    alignItems: 'flex-start',
-  },
-  bubbleWrapMe: {
-    alignItems: 'flex-end',
-  },
+  bubbleWrap: { alignItems: 'flex-start' },
+  bubbleWrapMe: { alignItems: 'flex-end' },
   bubbleRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
     maxWidth: '80%',
   },
-  bubbleRowMe: {
-    flexDirection: 'row-reverse',
-  },
-  bubbleContent: {
-    flexShrink: 1,
-  },
+  bubbleRowMe: { flexDirection: 'row-reverse' },
+  bubbleContent: { flexShrink: 1 },
   bubbleSender: {
     fontSize: 12,
     fontFamily: fonts.medium,
     color: '#4a5565',
+    marginBottom: 3,
+    marginLeft: 4,
   },
   bubble: {
     paddingHorizontal: 14,
@@ -792,18 +765,14 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e7eb',
   },
-  bubbleMe: {
-    backgroundColor: '#7300ff',
-  },
+  bubbleMe: { backgroundColor: '#7300ff' },
   bubbleText: {
     fontSize: 14,
     fontFamily: fonts.regular,
     color: '#101828',
     lineHeight: 20,
   },
-  bubbleTextMe: {
-    color: '#fff',
-  },
+  bubbleTextMe: { color: '#fff' },
   bubbleTime: {
     fontSize: 11,
     fontFamily: fonts.regular,
@@ -812,14 +781,13 @@ const s = StyleSheet.create({
     marginLeft: 4,
   },
 
-  // ===== Members list + cards =====
+  // ===== Members =====
   membersList: {
     flex: 1,
     backgroundColor: '#f9fafb',
   },
   membersContent: {
     padding: 14,
-    gap: 10,
   },
   memberCard: {
     backgroundColor: '#fff',
@@ -831,41 +799,25 @@ const s = StyleSheet.create({
   },
   memberRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 12,
   },
-  memberAvatarWrap: {
-    position: 'relative',
-  },
-  verifiedDot: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#7300ff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  memberInfo: {
-    flex: 1,
-  },
+  memberInfo: { flex: 1 },
   memberName: {
     fontSize: 15,
     fontFamily: fonts.semiBold,
     color: '#101828',
+    marginBottom: 2,
   },
   memberMajor: {
     fontSize: 12,
     fontFamily: fonts.regular,
     color: '#4a5565',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   memberBadges: {
     flexDirection: 'row',
     gap: 6,
-    marginBottom: 4,
   },
   yearBadge: {
     backgroundColor: '#f3e8ff',
@@ -878,72 +830,11 @@ const s = StyleSheet.create({
     fontSize: 10,
     fontFamily: fonts.medium,
   },
-  verifiedBadgeSmall: {
-    backgroundColor: '#7300ff',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  verifiedBadgeSmallText: {
-    color: '#fff',
-    fontSize: 10,
-    fontFamily: fonts.medium,
-  },
-  memberNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 2,
-  },
-  memberCardFriend: {
-    borderColor: '#00ac9b',
-    borderWidth: 1.5,
-  },
-  friendBadge: {
-    backgroundColor: '#e6f9f5',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  friendBadgeText: {
-    fontSize: 9,
-    fontFamily: fonts.semiBold,
-    color: '#00ac9b',
-  },
-  memberMutual: {
-    fontSize: 11,
-    fontFamily: fonts.regular,
-    color: '#4a5565',
-    marginTop: 2,
-  },
-  // Chat bubble friend tag
-  senderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 3,
-    marginLeft: 4,
-  },
-  friendTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: '#e6f9f5',
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 4,
-  },
-  friendTagText: {
-    fontSize: 9,
-    fontFamily: fonts.semiBold,
-    color: '#00ac9b',
-  },
   msgBtn: {
     backgroundColor: '#f3e8ff',
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
-    alignSelf: 'center',
   },
   msgBtnText: {
     color: '#7300ff',

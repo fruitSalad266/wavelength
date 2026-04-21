@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,62 +8,117 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '../../components/Avatar';
 import { fonts } from '../../theme/fonts';
-import { DM_PERSON as PERSON, DM_CONNECTION as CONNECTION, DM_MUTUAL_FRIENDS as MUTUAL_FRIENDS, DM_INITIAL_MESSAGES as INITIAL_MESSAGES } from '../../data/mockDirectMessage';
+import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
+import { useMessages } from '../../hooks/useMessages';
 
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
+function formatMsgTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const now = new Date();
+  if (now - d < 60000) return 'Just now';
+  if (d.toDateString() === now.toDateString())
+    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
 
-function ChatBubble({ msg, isMe }) {
+function ChatBubble({ msg }) {
   return (
-    <View style={[s.bubbleWrap, isMe && s.bubbleWrapMe]}>
-      <View style={[s.bubbleRow, isMe && s.bubbleRowMe]}>
-        {!isMe && (
+    <View style={[s.bubbleWrap, msg.isMine && s.bubbleWrapMe]}>
+      <View style={[s.bubbleRow, msg.isMine && s.bubbleRowMe]}>
+        {!msg.isMine && (
           <View style={s.bubbleAvatar}>
             <Feather name="user" size={14} color="#7300ff" />
           </View>
         )}
         <View style={s.bubbleContent}>
-          <View style={[s.bubble, isMe ? s.bubbleMe : s.bubbleOther]}>
-            <Text style={[s.bubbleText, isMe && s.bubbleTextMe]}>{msg.text}</Text>
+          <View style={[s.bubble, msg.isMine ? s.bubbleMe : s.bubbleOther]}>
+            <Text style={[s.bubbleText, msg.isMine && s.bubbleTextMe]}>{msg.body}</Text>
           </View>
-          <Text style={[s.bubbleTime, isMe && { textAlign: 'right' }]}>{msg.timestamp}</Text>
+          <Text style={[s.bubbleTime, msg.isMine && { textAlign: 'right' }]}>
+            {formatMsgTime(msg.createdAt)}
+          </Text>
         </View>
       </View>
     </View>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Main screen
-// ---------------------------------------------------------------------------
-
-export default function DirectMessageScreen({ navigation }) {
+export default function DirectMessageScreen({ navigation, route }) {
+  const { userId, userName } = route?.params || {};
   const insets = useSafeAreaInsets();
-  const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState(INITIAL_MESSAGES);
-  const scrollRef = useRef(null);
+  const { user } = useAuth();
+  const { messages, loading, send } = useMessages({ recipientId: userId });
 
-  const handleSend = () => {
-    if (!message.trim()) return;
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        sender: 'me',
-        text: message.trim(),
-        timestamp: 'Just now',
-      },
-    ]);
-    setMessage('');
+  const [messageText, setMessageText] = useState('');
+  const [recipientProfile, setRecipientProfile] = useState(null);
+  const [partnerTyping, setPartnerTyping] = useState(false);
+
+  const scrollRef = useRef(null);
+  const typingChannelRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+  const sendTypingRef = useRef(null);
+
+  // Fetch recipient profile for avatar / location
+  useEffect(() => {
+    if (!userId) return;
+    supabase
+      .from('profiles')
+      .select('id, full_name, avatar_url, location, age_range')
+      .eq('id', userId)
+      .single()
+      .then(({ data }) => { if (data) setRecipientProfile(data); });
+  }, [userId]);
+
+  // Typing indicator channel
+  useEffect(() => {
+    if (!userId || !user?.id) return;
+    const channelId = [user.id, userId].sort().join('-');
+    const ch = supabase
+      .channel(`typing-dm-${channelId}`)
+      .on('broadcast', { event: 'typing' }, ({ payload }) => {
+        if (payload.userId === user.id) return;
+        setPartnerTyping(true);
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = setTimeout(() => setPartnerTyping(false), 4000);
+      })
+      .subscribe();
+    typingChannelRef.current = ch;
+    return () => {
+      supabase.removeChannel(ch);
+      clearTimeout(typingTimeoutRef.current);
+      clearTimeout(sendTypingRef.current);
+    };
+  }, [userId, user?.id]);
+
+  const handleTextChange = (text) => {
+    setMessageText(text);
+    clearTimeout(sendTypingRef.current);
+    sendTypingRef.current = setTimeout(() => {
+      typingChannelRef.current?.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { userId: user?.id },
+      });
+    }, 500);
+  };
+
+  const handleSend = async () => {
+    if (!messageText.trim()) return;
+    const text = messageText.trim();
+    setMessageText('');
+    await send(text);
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   };
+
+  const displayName = recipientProfile?.full_name || userName || 'Unknown';
 
   return (
     <KeyboardAvoidingView
@@ -72,7 +127,6 @@ export default function DirectMessageScreen({ navigation }) {
     >
       <LinearGradient colors={['#7300ff', '#00ac9b']} style={StyleSheet.absoluteFill} />
 
-      {/* Header bar */}
       <View style={[s.header, { paddingTop: insets.top }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={s.backRow}>
           <Feather name="arrow-left" size={20} color="rgba(255,255,255,0.9)" />
@@ -80,81 +134,67 @@ export default function DirectMessageScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Chat card */}
       <View style={s.cardWrap}>
-        {/* Person info header */}
+        {/* Person header */}
         <View style={s.personHeader}>
           <View style={s.personRow}>
-            <View style={s.personAvatar}>
-              <Feather name="user" size={28} color="#7300ff" />
-            </View>
+            <Avatar uri={recipientProfile?.avatar_url} name={displayName} size={56} style={{ borderWidth: 2, borderColor: '#7300ff' }} />
             <View style={s.personInfo}>
-              <Text style={s.personName}>{PERSON.name}</Text>
-              <View style={s.personMeta}>
-                <Feather name="map-pin" size={13} color="#4a5565" />
-                <Text style={s.personMetaText}>{PERSON.location}</Text>
-                <Text style={s.personMetaText}>•</Text>
-                <Text style={s.personMetaText}>{PERSON.ageRange}</Text>
-              </View>
+              <Text style={s.personName}>{displayName}</Text>
+              {(recipientProfile?.location || recipientProfile?.age_range) ? (
+                <View style={s.personMeta}>
+                  {recipientProfile.location ? (
+                    <>
+                      <Feather name="map-pin" size={13} color="#4a5565" />
+                      <Text style={s.personMetaText}>{recipientProfile.location}</Text>
+                    </>
+                  ) : null}
+                  {recipientProfile.location && recipientProfile.age_range ? (
+                    <Text style={s.personMetaText}>•</Text>
+                  ) : null}
+                  {recipientProfile.age_range ? (
+                    <Text style={s.personMetaText}>{recipientProfile.age_range}</Text>
+                  ) : null}
+                </View>
+              ) : null}
             </View>
             <TouchableOpacity
               style={s.viewProfileBtn}
-              onPress={() => navigation.navigate('Profile')}
+              onPress={() => navigation.navigate('UserProfile', { userId })}
             >
               <Text style={s.viewProfileText}>View Profile</Text>
             </TouchableOpacity>
           </View>
-
-          {/* Connection info */}
-          <View style={s.connectionBox}>
-            <Text style={s.connectionText}>
-              <Text style={s.connectionBold}>Found through: </Text>
-              {CONNECTION.event}
-            </Text>
-            <Text style={s.connectionText}>
-              <Text style={s.connectionBold}>First message: </Text>
-              {CONNECTION.firstMessage}
-            </Text>
-          </View>
-
-          {/* Mutual friends */}
-          <View style={s.mutualSection}>
-            <View style={s.mutualHeader}>
-              <Feather name="users" size={14} color="#7300ff" />
-              <Text style={s.mutualTitle}>{MUTUAL_FRIENDS.length} Mutual Friends</Text>
-            </View>
-            <View style={s.mutualRow}>
-              {MUTUAL_FRIENDS.map((friend) => (
-                <View key={friend.id} style={s.mutualItem}>
-                  <Avatar uri={friend.avatar} name={friend.name} size={40} style={{ borderWidth: 0 }} />
-                  <Text style={s.mutualName} numberOfLines={1}>
-                    {friend.name.split(' ')[0]}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </View>
         </View>
 
         {/* Messages */}
-        <ScrollView
-          ref={scrollRef}
-          style={s.messagesScroll}
-          contentContainerStyle={s.messagesContent}
-          showsVerticalScrollIndicator={false}
-          onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
-        >
-          {messages.map((msg) => (
-            <ChatBubble key={msg.id} msg={msg} isMe={msg.sender === 'me'} />
-          ))}
-        </ScrollView>
+        {loading ? (
+          <View style={s.loadingWrap}>
+            <ActivityIndicator color="#7300ff" />
+          </View>
+        ) : (
+          <ScrollView
+            ref={scrollRef}
+            style={s.messagesScroll}
+            contentContainerStyle={s.messagesContent}
+            showsVerticalScrollIndicator={false}
+            onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
+          >
+            {messages.map((msg) => <ChatBubble key={msg.id} msg={msg} />)}
+            {partnerTyping && (
+              <View style={s.typingWrap}>
+                <Text style={s.typingText}>{displayName} is typing...</Text>
+              </View>
+            )}
+          </ScrollView>
+        )}
 
         {/* Input */}
         <View style={[s.inputBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           <TextInput
             style={s.textInput}
-            value={message}
-            onChangeText={setMessage}
+            value={messageText}
+            onChangeText={handleTextChange}
             placeholder="Type your message..."
             placeholderTextColor="#9ca3af"
             returnKeyType="send"
@@ -169,14 +209,9 @@ export default function DirectMessageScreen({ navigation }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
 const s = StyleSheet.create({
   root: { flex: 1 },
 
-  // Header
   header: {
     backgroundColor: 'rgba(255,255,255,0.25)',
     paddingHorizontal: 20,
@@ -193,14 +228,12 @@ const s = StyleSheet.create({
     fontFamily: fonts.regular,
   },
 
-  // Card
   cardWrap: {
     flex: 1,
     backgroundColor: 'rgba(249,250,251,0.92)',
     overflow: 'hidden',
   },
 
-  // Person header
   personHeader: {
     backgroundColor: '#fff',
     borderBottomWidth: 1,
@@ -211,21 +244,8 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginBottom: 14,
   },
-  personAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#f3e8ff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#7300ff',
-  },
-  personInfo: {
-    flex: 1,
-  },
+  personInfo: { flex: 1 },
   personName: {
     fontSize: 20,
     fontFamily: fonts.semiBold,
@@ -255,53 +275,12 @@ const s = StyleSheet.create({
     fontFamily: fonts.medium,
   },
 
-  // Connection
-  connectionBox: {
-    backgroundColor: '#f9fafb',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 14,
-    gap: 4,
-  },
-  connectionText: {
-    fontSize: 13,
-    fontFamily: fonts.regular,
-    color: '#4a5565',
-  },
-  connectionBold: {
-    fontFamily: fonts.semiBold,
+  loadingWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
-  // Mutual friends
-  mutualSection: {},
-  mutualHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 10,
-  },
-  mutualTitle: {
-    fontSize: 14,
-    fontFamily: fonts.semiBold,
-    color: '#101828',
-  },
-  mutualRow: {
-    flexDirection: 'row',
-    gap: 14,
-  },
-  mutualItem: {
-    alignItems: 'center',
-    width: 52,
-  },
-  mutualName: {
-    fontSize: 10,
-    fontFamily: fonts.regular,
-    color: '#4a5565',
-    marginTop: 4,
-    textAlign: 'center',
-  },
-
-  // Messages
   messagesScroll: {
     flex: 1,
     backgroundColor: '#f9fafb',
@@ -311,22 +290,26 @@ const s = StyleSheet.create({
     gap: 12,
   },
 
-  // Bubble
-  bubbleWrap: {
-    alignItems: 'flex-start',
+  typingWrap: {
+    paddingHorizontal: 4,
+    paddingBottom: 4,
   },
-  bubbleWrapMe: {
-    alignItems: 'flex-end',
+  typingText: {
+    fontSize: 12,
+    fontFamily: fonts.regular,
+    color: '#9ca3af',
+    fontStyle: 'italic',
   },
+
+  bubbleWrap: { alignItems: 'flex-start' },
+  bubbleWrapMe: { alignItems: 'flex-end' },
   bubbleRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
     maxWidth: '80%',
   },
-  bubbleRowMe: {
-    flexDirection: 'row-reverse',
-  },
+  bubbleRowMe: { flexDirection: 'row-reverse' },
   bubbleAvatar: {
     width: 28,
     height: 28,
@@ -335,9 +318,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bubbleContent: {
-    flexShrink: 1,
-  },
+  bubbleContent: { flexShrink: 1 },
   bubble: {
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -348,18 +329,14 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e7eb',
   },
-  bubbleMe: {
-    backgroundColor: '#7300ff',
-  },
+  bubbleMe: { backgroundColor: '#7300ff' },
   bubbleText: {
     fontSize: 14,
     fontFamily: fonts.regular,
     color: '#101828',
     lineHeight: 20,
   },
-  bubbleTextMe: {
-    color: '#fff',
-  },
+  bubbleTextMe: { color: '#fff' },
   bubbleTime: {
     fontSize: 11,
     fontFamily: fonts.regular,
@@ -368,7 +345,6 @@ const s = StyleSheet.create({
     marginLeft: 4,
   },
 
-  // Input
   inputBar: {
     flexDirection: 'row',
     alignItems: 'center',

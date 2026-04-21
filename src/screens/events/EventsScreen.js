@@ -1,11 +1,11 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   FlatList,
-  Image,
+  TextInput,
   TouchableOpacity,
   Dimensions,
   StatusBar,
@@ -74,13 +74,38 @@ const LargeEventCard = React.memo(function LargeEventCard({ event, onPress, isSt
 export default function EventsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [searchVisible, setSearchVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchRef = useRef(null);
   const { events: supabaseEvents, loading } = useEvents();
   const { starredEventIds } = useMyRSVPs();
 
   const filteredEvents = useMemo(() => {
-    if (selectedCategory === 'All') return supabaseEvents;
-    return supabaseEvents.filter((e) => e.category === selectedCategory);
-  }, [supabaseEvents, selectedCategory]);
+    let events = supabaseEvents;
+    if (selectedCategory !== 'All') {
+      events = events.filter((e) => e.category === selectedCategory);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      events = events.filter(
+        (e) =>
+          e.title?.toLowerCase().includes(q) ||
+          e.location?.toLowerCase().includes(q) ||
+          e.category?.toLowerCase().includes(q)
+      );
+    }
+    return events;
+  }, [supabaseEvents, selectedCategory, searchQuery]);
+
+  const toggleSearch = () => {
+    if (searchVisible) {
+      setSearchQuery('');
+      setSearchVisible(false);
+    } else {
+      setSearchVisible(true);
+      setTimeout(() => searchRef.current?.focus(), 50);
+    }
+  };
 
   return (
     <View style={s.root}>
@@ -91,11 +116,31 @@ export default function EventsScreen({ navigation }) {
         <View style={s.headerInner}>
           <Text style={s.headerTitle}>Events</Text>
           <View style={s.headerRight}>
-            <TouchableOpacity style={s.searchBtn}>
-              <Feather name="search" size={20} color="#fff" />
+            <TouchableOpacity style={[s.searchBtn, searchVisible && s.searchBtnActive]} onPress={toggleSearch}>
+              <Feather name={searchVisible ? 'x' : 'search'} size={20} color="#fff" />
             </TouchableOpacity>
           </View>
         </View>
+        {searchVisible && (
+          <View style={s.searchBarWrap}>
+            <Feather name="search" size={16} color="rgba(255,255,255,0.6)" style={{ marginRight: 8 }} />
+            <TextInput
+              ref={searchRef}
+              style={s.searchInput}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search events..."
+              placeholderTextColor="rgba(255,255,255,0.5)"
+              returnKeyType="search"
+              autoCorrect={false}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Feather name="x-circle" size={16} color="rgba(255,255,255,0.6)" />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
       </View>
 
       <FlatList
@@ -174,6 +219,26 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  searchBtnActive: {
+    backgroundColor: 'rgba(255,255,255,0.25)',
+  },
+  searchBarWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginBottom: 12,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  searchInput: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 15,
+    fontFamily: fonts.regular,
+    paddingVertical: 0,
   },
 
   scrollContent: {

@@ -186,3 +186,65 @@ export function useEventGroupChats(eventId) {
 
   return { chats, myMemberships, loading, joinChat, leaveChat, refresh: fetchChats };
 }
+
+/**
+ * Details + members for a single group chat.
+ */
+export function useGroupChat(groupChatId) {
+  const { user } = useAuth();
+  const [group, setGroup] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [isMember, setIsMember] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const fetchGroup = useCallback(async () => {
+    if (!groupChatId) return;
+
+    const [{ data: groupData }, { data: memberRows }] = await Promise.all([
+      supabase.from('group_chats').select('*').eq('id', groupChatId).single(),
+      supabase
+        .from('group_chat_members')
+        .select('user_id, profiles(id, full_name, avatar_url, major, class_year)')
+        .eq('group_chat_id', groupChatId),
+    ]);
+
+    if (groupData) {
+      setGroup({
+        id: groupData.id,
+        name: groupData.name,
+        icon: groupData.icon || '💬',
+        description: groupData.description,
+        isVerified: groupData.is_verified,
+        memberCount: memberRows?.length || 0,
+      });
+    }
+
+    const mapped = (memberRows || []).map((r) => ({
+      id: r.profiles?.id || r.user_id,
+      name: r.profiles?.full_name || 'Unknown',
+      avatar: r.profiles?.avatar_url,
+      major: r.profiles?.major || null,
+      classYear: r.profiles?.class_year ? String(r.profiles.class_year) : null,
+    }));
+
+    setMembers(mapped);
+    setIsMember(user ? (memberRows || []).some((r) => r.user_id === user.id) : false);
+    setLoading(false);
+  }, [groupChatId, user]);
+
+  useEffect(() => { fetchGroup(); }, [fetchGroup]);
+
+  const join = useCallback(async () => {
+    if (!user || !groupChatId) return;
+    const { error } = await supabase
+      .from('group_chat_members')
+      .insert({ group_chat_id: groupChatId, user_id: user.id });
+    if (!error) {
+      setIsMember(true);
+      fetchGroup();
+    }
+    return error;
+  }, [user, groupChatId, fetchGroup]);
+
+  return { group, members, isMember, loading, join };
+}

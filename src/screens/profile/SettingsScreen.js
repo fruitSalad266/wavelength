@@ -682,19 +682,21 @@ export default function SettingsScreen({ navigation }) {
 
       // Upload new avatar if changed
       if (newAvatarUri) {
-        const ext = newAvatarUri.split('.').pop()?.toLowerCase() || 'jpg';
-        const path = `${user.id}/avatar.${ext}`;
-        const response = await fetch(newAvatarUri);
-        const blob = await response.blob();
+        const ext = newAvatarUri.split('.').pop()?.split('?')[0]?.toLowerCase() || 'jpg';
+        const mimeType = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
+        const path = `${user.id}/avatar_${Date.now()}.${ext}`;
+
+        const formData = new FormData();
+        formData.append('file', { uri: newAvatarUri, name: `avatar.${ext}`, type: mimeType });
 
         const { error: uploadError } = await supabase.storage
           .from('avatars')
-          .upload(path, blob, { upsert: true, contentType: `image/${ext}` });
+          .upload(path, formData, { upsert: true, contentType: mimeType });
 
-        if (!uploadError) {
-          const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
-          updates.avatar_url = urlData.publicUrl;
-        }
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+        updates.avatar_url = urlData.publicUrl;
       }
 
       const { error } = await supabase
