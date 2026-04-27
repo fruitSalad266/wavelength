@@ -26,7 +26,6 @@ import UserProfileScreen from '../screens/profile/UserProfileScreen';
 import AllAttendeesScreen from '../screens/events/AllAttendeesScreen';
 import SavedEventsScreen from '../screens/events/SavedEventsScreen';
 import YourEventsScreen from '../screens/events/YourEventsScreen';
-import MatchesScreen from '../screens/matches/MatchesScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -78,13 +77,6 @@ function HomeTabs() {
         component={EventsScreen}
         options={{
           tabBarIcon: ({ color, size }) => <TabBarIcon name="calendar" color={color} size={size} />,
-        }}
-      />
-      <Tab.Screen
-        name="Matches"
-        component={MatchesScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => <TabBarIcon name="heart" color={color} size={size} />,
         }}
       />
       <Tab.Screen
