@@ -41,9 +41,9 @@ export function calculateMatchScore(currentUser, otherUser, currentFriendIds = [
     // Neither listed clubs — treat as neutral, give full weight
     score += 15;
   } else {
-    const sharedClubs = myClubs.filter((c) => theirClubs.includes(c));
+    const _sharedClubs = myClubs.filter((c) => theirClubs.includes(c));
     const maxClubs = Math.max(myClubs.length, theirClubs.length, 1);
-    score += (sharedClubs.length / maxClubs) * 15;
+    score += (_sharedClubs.length / maxClubs) * 15;
   }
 
   // Mutual friends (10%)
@@ -51,13 +51,18 @@ export function calculateMatchScore(currentUser, otherUser, currentFriendIds = [
   const hasMutual = currentFriendIds.some((id) => otherFriendSet.has(id));
   if (hasMutual) score += 10;
 
-  // Breakdown for display
+  const sharedClubs = myClubs.filter((c) => theirClubs.includes(c));
+  const mutualFriendCount = currentFriendIds.filter((id) => otherFriendSet.has(id)).length;
+
+  // Breakdown includes actual values so the UI can display reasons
   const breakdown = {
     sharedInterests,
     sameMajor: !!sameMajor,
+    major: sameMajor ? otherUser.major : null,
     sameYear: !!sameYear,
-    sharedClubs: myClubs.filter((c) => theirClubs.includes(c)),
-    mutualFriendCount: currentFriendIds.filter((id) => otherFriendSet.has(id)).length,
+    classYear: sameYear ? otherUser.class_year : null,
+    sharedClubs,
+    mutualFriendCount,
   };
 
   return { score: Math.round(score), breakdown };

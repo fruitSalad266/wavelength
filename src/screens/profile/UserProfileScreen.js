@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,10 @@ import { Avatar } from '../../components/Avatar';
 import { Badge } from '../../components/Badge';
 import { fonts } from '../../theme/fonts';
 import { useFriends } from '../../hooks/useFriends';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
+import { calculateMatchScore } from '../../utils/matchScore';
+import { MatchBadge } from '../../components/MatchBadge';
 import { USERS } from '../../data/mockUsers';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -48,6 +52,25 @@ export default function UserProfileScreen({ navigation, route }) {
   const [menuVisible, setMenuVisible] = useState(false);
   const { sendRequest, acceptRequest, removeFriend, getFriendship } = useFriends();
   const friendship = getFriendship(userId);
+  const { profile: myProfile } = useAuth();
+  const [matchResult, setMatchResult] = useState(null);
+
+  // Fetch real Supabase profile for scoring (works for all real users)
+  useEffect(() => {
+    if (!myProfile || !userId) return;
+    const fetchAndScore = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url, interests, major, class_year, extras')
+        .eq('id', userId)
+        .single();
+      if (data && myProfile) {
+        const result = calculateMatchScore(myProfile, data);
+        if (result.score >= 80) setMatchResult(result);
+      }
+    };
+    fetchAndScore();
+  }, [userId, myProfile]);
 
   if (!user) {
     return (
@@ -126,6 +149,13 @@ export default function UserProfileScreen({ navigation, route }) {
         <View style={s.avatarContainer}>
           <View style={s.avatarOuter}>
             <Avatar uri={user.avatar} name={user.name} size={104} style={{ borderWidth: 0 }} />
+            {matchResult && (
+              <MatchBadge
+                score={matchResult.score}
+                breakdown={matchResult.breakdown}
+                name={user.name}
+              />
+            )}
           </View>
         </View>
 

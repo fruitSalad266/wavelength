@@ -26,6 +26,7 @@ import { useRSVP } from '../../hooks/useRSVP';
 import { useEventGroupChats } from '../../hooks/useGroupChats';
 import { useAuth } from '../../contexts/AuthContext';
 import { calculateMatchScore } from '../../utils/matchScore';
+import { MatchBadge } from '../../components/MatchBadge';
 import { EVENT as DEFAULT_EVENT_DETAIL, MUTUAL_CONNECTIONS, FRIENDS_GOING } from '../../data/mockEventDetail';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -72,13 +73,11 @@ function AttendeeCard({ attendee, onPress }) {
       <Wrapper style={[s.attendeeCard, s.attendeeCardMatch]} {...wrapperProps}>
         <View style={s.attendeeAvatarWrap}>
           <Avatar uri={attendee.avatar} name={attendee.name} size={44} style={{ borderWidth: 0 }} />
-          <View style={s.sparkBadge}>
-            <Feather name="zap" size={10} color="#fff" />
-          </View>
+          <MatchBadge score={attendee.matchScore} breakdown={attendee.breakdown} name={attendee.name} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={s.attendeeName} numberOfLines={1}>{attendee.name}</Text>
-          <Text style={s.attendeeSub}>{attendee.matchScore}% Match</Text>
+          <Text style={s.attendeeSub}>{attendee.matchScore}% Match · tap to see why</Text>
         </View>
       </Wrapper>
     );
@@ -86,7 +85,9 @@ function AttendeeCard({ attendee, onPress }) {
 
   return (
     <Wrapper style={[s.attendeeCardCompact, attendee.status === 'maybe' && s.attendeeCardMaybe]} {...wrapperProps}>
-      <Avatar uri={attendee.avatar} name={attendee.name} size={34} style={{ borderWidth: 0 }} />
+      <View style={s.attendeeAvatarWrap}>
+        <Avatar uri={attendee.avatar} name={attendee.name} size={34} style={{ borderWidth: 0 }} />
+      </View>
       <Text style={s.attendeeNameCompact} numberOfLines={1}>{attendee.name}</Text>
       {attendee.status === 'maybe' && (
         <Text style={s.attendeeMaybeLabel}>Maybe</Text>
