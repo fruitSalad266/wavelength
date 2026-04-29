@@ -190,14 +190,21 @@ export default function ProfileScreen({ navigation }) {
       >
         {/* Banner */}
         <View style={styles.banner}>
-          <Image
-            source={{
-              uri: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
-            }}
-            style={StyleSheet.absoluteFill}
-          />
+          {profile?.banner_url ? (
+            <Image
+              source={{ uri: profile.banner_url }}
+              style={StyleSheet.absoluteFill}
+              resizeMode="cover"
+            />
+          ) : (
+            <LinearGradient
+              colors={['#5a00cc', '#7300ff']}
+              style={StyleSheet.absoluteFill}
+            />
+          )}
           <LinearGradient
-            colors={['rgba(0,0,0,0)', 'rgba(115,0,255,0.6)']}
+            colors={['transparent', 'transparent', 'rgba(115,0,255,0.6)', '#7300ff']}
+            locations={[0, 0.35, 0.75, 1]}
             style={StyleSheet.absoluteFill}
           />
         </View>

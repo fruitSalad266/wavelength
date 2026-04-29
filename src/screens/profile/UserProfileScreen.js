@@ -66,7 +66,7 @@ export default function UserProfileScreen({ navigation, route }) {
       setProfileLoading(true);
       const { data } = await supabase
         .from('profiles')
-        .select('id, full_name, avatar_url, interests, major, class_year, extras')
+        .select('id, full_name, avatar_url, banner_url, interests, major, class_year, extras')
         .eq('id', userId)
         .single();
       if (data) {
@@ -114,7 +114,7 @@ export default function UserProfileScreen({ navigation, route }) {
       );
     }
 
-    const { full_name, avatar_url, interests: rInterests, major, class_year, extras } = realProfile;
+    const { full_name, avatar_url, banner_url, interests: rInterests, major, class_year, extras } = realProfile;
     const rClubs = extras?.clubs || [];
     const firstName = full_name?.split(' ')[0] ?? '';
 
@@ -149,12 +149,28 @@ export default function UserProfileScreen({ navigation, route }) {
         </Modal>
 
         <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 100 }} showsVerticalScrollIndicator={false}>
-          <View style={{ alignItems: 'center', paddingTop: 36, paddingBottom: 16 }}>
+          <View style={s.banner}>
+            {banner_url ? (
+              <Image source={{ uri: banner_url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+            ) : (
+              <LinearGradient colors={['#5a00cc', '#7300ff']} style={StyleSheet.absoluteFill} />
+            )}
+            <LinearGradient
+              colors={['transparent', 'transparent', 'rgba(115,0,255,0.6)', '#7300ff']}
+              locations={[0, 0.35, 0.75, 1]}
+              style={StyleSheet.absoluteFill}
+            />
+          </View>
+
+          <View style={s.avatarContainer}>
             <View style={s.avatarOuter}>
               <Avatar uri={avatar_url} name={full_name} size={104} style={{ borderWidth: 0 }} />
               {matchResult && <MatchBadge score={matchResult.score} breakdown={matchResult.breakdown} name={full_name} />}
             </View>
-            <Text style={[s.profileName, { marginTop: 14 }]}>{full_name}</Text>
+          </View>
+
+          <View style={s.profileInfo}>
+            <Text style={s.profileName}>{full_name}</Text>
             <View style={s.uwChip}>
               <Feather name="check-circle" size={14} color="#7300ff" />
               <Text style={s.uwChipText}>Verified UW Student</Text>
@@ -303,8 +319,12 @@ export default function UserProfileScreen({ navigation, route }) {
       >
         {/* Banner */}
         <View style={s.banner}>
-          <Image source={{ uri: user.banner }} style={StyleSheet.absoluteFill} />
-          <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(115,0,255,0.6)']} style={StyleSheet.absoluteFill} />
+          <Image source={{ uri: user.banner }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          <LinearGradient
+            colors={['transparent', 'transparent', 'rgba(115,0,255,0.6)', '#7300ff']}
+            locations={[0, 0.35, 0.75, 1]}
+            style={StyleSheet.absoluteFill}
+          />
         </View>
 
         {/* Avatar */}

@@ -238,7 +238,7 @@ function PromptAnswerEditor({ prompt, answer, onChange }) {
 // Tab content components
 // ---------------------------------------------------------------------------
 
-function ProfileTab({ data, setData, avatarUri, onPickAvatar }) {
+function ProfileTab({ data, setData, avatarUri, onPickAvatar, bannerUri, onPickBanner }) {
   const toggleInterest = (interest) => {
     const current = data.interests || [];
     if (current.includes(interest)) {
@@ -285,6 +285,23 @@ function ProfileTab({ data, setData, avatarUri, onPickAvatar }) {
             <Text style={s.uploadBtnText}>Upload Photo</Text>
           </TouchableOpacity>
         </View>
+      </Card>
+
+      <Card>
+        <SectionTitle text="Profile Banner" />
+        <TouchableOpacity style={s.bannerPickerArea} activeOpacity={0.8} onPress={onPickBanner}>
+          {bannerUri ? (
+            <Image source={{ uri: bannerUri }} style={s.bannerPreview} />
+          ) : (
+            <View style={s.bannerPlaceholder}>
+              <Feather name="image" size={24} color="#9ca3af" />
+              <Text style={s.bannerPlaceholderText}>Tap to add a banner</Text>
+            </View>
+          )}
+          <View style={s.bannerEditBadge}>
+            <Feather name="camera" size={14} color="#fff" />
+          </View>
+        </TouchableOpacity>
       </Card>
 
       <Card>
@@ -570,6 +587,7 @@ export default function SettingsScreen({ navigation }) {
   const [activeTab, setActiveTab] = useState('profile');
   const [saving, setSaving] = useState(false);
   const [newAvatarUri, setNewAvatarUri] = useState(null);
+  const [newBannerUri, setNewBannerUri] = useState(null);
 
   // Derive social map from stored social_links array
   const buildSocialsMap = useCallback(() => {
@@ -623,6 +641,7 @@ export default function SettingsScreen({ navigation }) {
   });
 
   const avatarUrl = newAvatarUri || profile?.avatar_url;
+  const bannerUrl = newBannerUri || profile?.banner_url;
 
   const pickAvatar = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -633,6 +652,18 @@ export default function SettingsScreen({ navigation }) {
     });
     if (!result.canceled) {
       setNewAvatarUri(result.assets[0].uri);
+    }
+  };
+
+  const pickBanner = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [3, 1],
+      quality: 0.5,
+    });
+    if (!result.canceled) {
+      setNewBannerUri(result.assets[0].uri);
     }
   };
 
@@ -699,6 +730,24 @@ export default function SettingsScreen({ navigation }) {
         updates.avatar_url = urlData.publicUrl;
       }
 
+      if (newBannerUri) {
+        const ext = newBannerUri.split('.').pop()?.split('?')[0]?.toLowerCase() || 'jpg';
+        const mimeType = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
+        const path = `${user.id}/banner_${Date.now()}.${ext}`;
+
+        const formData = new FormData();
+        formData.append('file', { uri: newBannerUri, name: `banner.${ext}`, type: mimeType });
+
+        const { error: bannerUploadError } = await supabase.storage
+          .from('avatars')
+          .upload(path, formData, { upsert: true, contentType: mimeType });
+
+        if (bannerUploadError) throw bannerUploadError;
+
+        const { data: bannerUrlData } = supabase.storage.from('avatars').getPublicUrl(path);
+        updates.banner_url = bannerUrlData.publicUrl;
+      }
+
       const { error } = await supabase
         .from('profiles')
         .update(updates)
@@ -708,6 +757,7 @@ export default function SettingsScreen({ navigation }) {
 
       await refreshProfile();
       setNewAvatarUri(null);
+      setNewBannerUri(null);
       Alert.alert('Saved', 'Your profile has been updated.');
     } catch (err) {
       Alert.alert('Error', err.message || 'Could not save. Please try again.');
@@ -726,7 +776,7 @@ export default function SettingsScreen({ navigation }) {
   const renderContent = () => {
     switch (activeTab) {
       case 'profile':
-        return <ProfileTab data={profileData} setData={setProfileData} avatarUri={avatarUrl} onPickAvatar={pickAvatar} />;
+        return <ProfileTab data={profileData} setData={setProfileData} avatarUri={avatarUrl} onPickAvatar={pickAvatar} bannerUri={bannerUrl} onPickBanner={pickBanner} />;
       case 'prompts':
         return <PromptsTab prompts={prompts} setPrompts={setPrompts} />;
       case 'privacy':
@@ -1171,5 +1221,40 @@ const s = StyleSheet.create({
     color: colors.primary,
     fontSize: 14,
     fontFamily: fonts.medium,
+  },
+
+  // Banner picker
+  bannerPickerArea: {
+    height: 120,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#f3f4f6',
+    position: 'relative',
+  },
+  bannerPreview: {
+    width: '100%',
+    height: '100%',
+  },
+  bannerPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  bannerPlaceholderText: {
+    fontSize: 13,
+    fontFamily: fonts.regular,
+    color: '#9ca3af',
+  },
+  bannerEditBadge: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

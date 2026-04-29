@@ -135,6 +135,7 @@ Deno.serve(async (req) => {
   try {
     // Allow optional query params to override defaults
     const url = new URL(req.url);
+    const venueId = url.searchParams.get("venueId");
     const city = url.searchParams.get("city") ?? "Seattle";
     const stateCode = url.searchParams.get("stateCode") ?? "WA";
     const size = url.searchParams.get("size") ?? "50";
@@ -142,8 +143,12 @@ Deno.serve(async (req) => {
     // Fetch from Ticketmaster
     const tmUrl = new URL("https://app.ticketmaster.com/discovery/v2/events.json");
     tmUrl.searchParams.set("apikey", TICKETMASTER_API_KEY);
-    tmUrl.searchParams.set("city", city);
-    tmUrl.searchParams.set("stateCode", stateCode);
+    if (venueId) {
+      tmUrl.searchParams.set("venueId", venueId);
+    } else {
+      tmUrl.searchParams.set("city", city);
+      tmUrl.searchParams.set("stateCode", stateCode);
+    }
     tmUrl.searchParams.set("sort", "relevance,desc");
     tmUrl.searchParams.set("size", size);
 
