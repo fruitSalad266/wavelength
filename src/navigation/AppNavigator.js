@@ -26,6 +26,7 @@ import UserProfileScreen from '../screens/profile/UserProfileScreen';
 import AllAttendeesScreen from '../screens/events/AllAttendeesScreen';
 import SavedEventsScreen from '../screens/events/SavedEventsScreen';
 import YourEventsScreen from '../screens/events/YourEventsScreen';
+import PeopleScreen from '../screens/profile/PeopleScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -131,6 +132,7 @@ export default function AppNavigator() {
             <Stack.Screen name="AllAttendees" component={AllAttendeesScreen} />
             <Stack.Screen name="SavedEvents" component={SavedEventsScreen} />
             <Stack.Screen name="YourEvents" component={YourEventsScreen} />
+            <Stack.Screen name="People" component={PeopleScreen} />
           </>
         )}
       </Stack.Navigator>

@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '../../components/Avatar';
 import { Badge } from '../../components/Badge';
 import { useAuth } from '../../contexts/AuthContext';
+import { useFriends } from '../../hooks/useFriends';
 import { fonts } from '../../theme/fonts';
 import { getPromptById } from '../../data/profilePrompts';
 import { profileRecentEvents as recentEvents, profileMutualFriends as mutualFriends } from '../../data/mockProfile';
@@ -140,6 +141,7 @@ function FriendExpandedRow({ friend }) {
 export default function ProfileScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { profile } = useAuth();
+  const { pending, friends, acceptRequest, removeFriend } = useFriends();
   const [friendsExpanded, setFriendsExpanded] = useState(false);
 
   const displayName = profile?.full_name || 'User';
@@ -168,11 +170,16 @@ export default function ProfileScreen({ navigation }) {
           <View style={styles.headerRight}>
             <TouchableOpacity
               style={styles.settingsBtn}
+              onPress={() => navigation.navigate('People')}
+            >
+              <Feather name="user-plus" size={16} color="rgba(255,255,255,0.9)" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.settingsBtn}
               onPress={() => navigation.navigate('Settings')}
             >
               <Feather name="settings" size={16} color="rgba(255,255,255,0.9)" />
             </TouchableOpacity>
-            
           </View>
         </View>
       </View>
@@ -235,6 +242,60 @@ export default function ProfileScreen({ navigation }) {
         
 
         <View style={styles.cardBody}>
+          {/* Friend Requests */}
+          {pending.length > 0 && (
+            <Card style={{ marginBottom: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <Feather name="users" size={16} color="#9810FA" />
+                <Text style={styles.cardTitle}>Friend Requests ({pending.length})</Text>
+              </View>
+              {pending.map((person) => (
+                <View key={person.id} style={styles.requestRow}>
+                  <Avatar uri={person.avatar_url} name={person.full_name} size={40} style={{ borderWidth: 0 }} />
+                  <Text style={styles.requestName} numberOfLines={1}>{person.full_name}</Text>
+                  <TouchableOpacity
+                    style={styles.acceptBtn}
+                    onPress={() => acceptRequest(person.id)}
+                  >
+                    <Text style={styles.acceptBtnText}>Accept</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.declineBtn}
+                    onPress={() => removeFriend(person.id)}
+                  >
+                    <Text style={styles.declineBtnText}>Decline</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </Card>
+          )}
+
+          {/* Friends list */}
+          {friends.length > 0 && (
+            <Card style={{ marginBottom: 12 }}>
+              <TouchableOpacity
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}
+                onPress={() => navigation.navigate('People')}
+              >
+                <Feather name="heart" size={16} color="#9810FA" />
+                <Text style={[styles.cardTitle, { flex: 1 }]}>Friends ({friends.length})</Text>
+                <Feather name="chevron-right" size={16} color="#9ca3af" />
+              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: -8 }}>
+                {friends.slice(0, 6).map((f, idx) => (
+                  <View key={f.id} style={{ marginLeft: idx > 0 ? -10 : 0, zIndex: 10 - idx }}>
+                    <Avatar uri={f.avatar_url} name={f.full_name} size={40} style={{ borderWidth: 2, borderColor: '#fff' }} />
+                  </View>
+                ))}
+                {friends.length > 6 && (
+                  <View style={[styles.moreCircle, { marginLeft: -10 }]}>
+                    <Text style={styles.moreCircleText}>+{friends.length - 6}</Text>
+                  </View>
+                )}
+              </View>
+            </Card>
+          )}
+
           {/* UW Section */}
           <View style={styles.uwSection}>
             <LinearGradient colors={['#4b0096', '#7300ff']} style={StyleSheet.absoluteFill} borderRadius={12} />
@@ -486,6 +547,41 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semiBold,
   },
 
+  // Friend requests
+  requestRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  requestName: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: fonts.semiBold,
+    color: '#101828',
+  },
+  acceptBtn: {
+    backgroundColor: '#7300ff',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  acceptBtnText: {
+    fontSize: 13,
+    fontFamily: fonts.semiBold,
+    color: '#fff',
+  },
+  declineBtn: {
+    backgroundColor: '#f3f4f6',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  declineBtnText: {
+    fontSize: 13,
+    fontFamily: fonts.semiBold,
+    color: '#4a5565',
+  },
   // Card
   card: {
     backgroundColor: '#fff',

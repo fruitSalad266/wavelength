@@ -4,10 +4,12 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  FlatList,
   TextInput,
   TouchableOpacity,
   StatusBar,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
@@ -19,6 +21,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useMyGroupChats } from '../../hooks/useGroupChats';
 import { useDirectMessageThreads } from '../../hooks/useMessages';
+import { useFriends } from '../../hooks/useFriends';
 
 function formatTime(iso) {
   if (!iso) return '';
@@ -93,9 +96,12 @@ export default function ChatsScreen({ navigation }) {
   const { chats: groupChats, loading: gcLoading, refresh: refreshGC } = useMyGroupChats();
   const { threads: dmThreads, loading: dmLoading, refresh: refreshDMs } = useDirectMessageThreads();
 
+  const { friends } = useFriends();
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [unreadIds, setUnreadIds] = useState(new Set());
+  const [composeVisible, setComposeVisible] = useState(false);
+  const [friendSearch, setFriendSearch] = useState('');
   const searchRef = useRef(null);
 
   const loading = gcLoading || dmLoading;
@@ -160,12 +166,17 @@ export default function ChatsScreen({ navigation }) {
       <View style={[s.header, { paddingTop: insets.top }]}>
         <View style={s.headerInner}>
           <Text style={s.headerTitle}>Chats</Text>
-          <TouchableOpacity
-            style={[s.searchBtn, searchVisible && s.searchBtnActive]}
-            onPress={toggleSearch}
-          >
-            <Feather name={searchVisible ? 'x' : 'search'} size={20} color="#fff" />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity style={s.searchBtn} onPress={() => setComposeVisible(true)}>
+              <Feather name="edit" size={20} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.searchBtn, searchVisible && s.searchBtnActive]}
+              onPress={toggleSearch}
+            >
+              <Feather name={searchVisible ? 'x' : 'search'} size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
         {searchVisible && (
           <View style={s.searchBarWrap}>
@@ -243,6 +254,61 @@ export default function ChatsScreen({ navigation }) {
           </View>
         </ScrollView>
       )}
+
+      {/* New DM modal */}
+      <Modal visible={composeVisible} transparent animationType="slide" onRequestClose={() => setComposeVisible(false)}>
+        <View style={s.modalOverlay}>
+          <View style={s.modalCard}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>New Message</Text>
+              <TouchableOpacity onPress={() => { setComposeVisible(false); setFriendSearch(''); }}>
+                <Feather name="x" size={22} color="#101828" />
+              </TouchableOpacity>
+            </View>
+            <View style={s.modalSearchWrap}>
+              <Feather name="search" size={15} color="#9ca3af" />
+              <TextInput
+                style={s.modalSearchInput}
+                value={friendSearch}
+                onChangeText={setFriendSearch}
+                placeholder="Search friends..."
+                placeholderTextColor="#9ca3af"
+                autoCorrect={false}
+                autoCapitalize="none"
+              />
+            </View>
+            <FlatList
+              data={friends.filter((f) =>
+                !friendSearch || f.full_name?.toLowerCase().includes(friendSearch.toLowerCase())
+              )}
+              keyExtractor={(item) => item.id}
+              style={{ maxHeight: 360 }}
+              ListEmptyComponent={
+                <View style={{ alignItems: 'center', padding: 24 }}>
+                  <Text style={{ fontSize: 14, fontFamily: fonts.regular, color: '#9ca3af' }}>
+                    {friends.length === 0 ? 'Add friends to start messaging' : 'No friends found'}
+                  </Text>
+                </View>
+              }
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={s.friendPickRow}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    setComposeVisible(false);
+                    setFriendSearch('');
+                    navigation.navigate('DirectMessage', { userId: item.id, userName: item.full_name });
+                  }}
+                >
+                  <Avatar uri={item.avatar_url} name={item.full_name} size={44} style={{ borderWidth: 0 }} />
+                  <Text style={s.friendPickName}>{item.full_name}</Text>
+                  <Feather name="chevron-right" size={18} color="#9ca3af" />
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -406,5 +472,64 @@ const s = StyleSheet.create({
     fontSize: 14,
     fontFamily: fonts.regular,
     color: '#9ca3af',
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
+    maxHeight: '75%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontFamily: fonts.semiBold,
+    color: '#101828',
+  },
+  modalSearchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  modalSearchInput: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: fonts.regular,
+    color: '#101828',
+    paddingVertical: 0,
+  },
+  friendPickRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#f3f4f6',
+  },
+  friendPickName: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: fonts.semiBold,
+    color: '#101828',
   },
 });
