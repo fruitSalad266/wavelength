@@ -273,26 +273,22 @@ export default function ProfileScreen({ navigation }) {
           {/* Friends list */}
           {friends.length > 0 && (
             <Card style={{ marginBottom: 12 }}>
-              <TouchableOpacity
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}
-                onPress={() => navigation.navigate('People')}
-              >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                 <Feather name="heart" size={16} color="#9810FA" />
-                <Text style={[styles.cardTitle, { flex: 1 }]}>Friends ({friends.length})</Text>
-                <Feather name="chevron-right" size={16} color="#9ca3af" />
-              </TouchableOpacity>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: -8 }}>
-                {friends.slice(0, 6).map((f, idx) => (
-                  <View key={f.id} style={{ marginLeft: idx > 0 ? -10 : 0, zIndex: 10 - idx }}>
-                    <Avatar uri={f.avatar_url} name={f.full_name} size={40} style={{ borderWidth: 2, borderColor: '#fff' }} />
-                  </View>
-                ))}
-                {friends.length > 6 && (
-                  <View style={[styles.moreCircle, { marginLeft: -10 }]}>
-                    <Text style={styles.moreCircleText}>+{friends.length - 6}</Text>
-                  </View>
-                )}
+                <Text style={[styles.cardTitle, { flex: 1, marginBottom: 0 }]}>Friends ({friends.length})</Text>
               </View>
+              {friends.map((f) => (
+                <TouchableOpacity
+                  key={f.id}
+                  style={styles.friendRow}
+                  activeOpacity={0.7}
+                  onPress={() => navigation.navigate('UserProfile', { userId: f.id, userName: f.full_name })}
+                >
+                  <Avatar uri={f.avatar_url} name={f.full_name} size={40} style={{ borderWidth: 0 }} />
+                  <Text style={styles.friendRowName} numberOfLines={1}>{f.full_name}</Text>
+                  <Feather name="chevron-right" size={16} color="#9ca3af" />
+                </TouchableOpacity>
+              ))}
             </Card>
           )}
 
@@ -545,6 +541,22 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontFamily: fonts.semiBold,
+  },
+
+  // Friends list rows
+  friendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#f3f4f6',
+  },
+  friendRowName: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: fonts.semiBold,
+    color: '#101828',
   },
 
   // Friend requests

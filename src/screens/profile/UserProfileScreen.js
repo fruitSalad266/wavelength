@@ -10,6 +10,7 @@ import {
   Linking,
   Modal,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
@@ -54,29 +55,190 @@ export default function UserProfileScreen({ navigation, route }) {
   const friendship = getFriendship(userId);
   const { profile: myProfile } = useAuth();
   const [matchResult, setMatchResult] = useState(null);
+  const [realProfile, setRealProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(!user);
 
-  // Fetch real Supabase profile for scoring (works for all real users)
+  // Fetch real Supabase profile for display + scoring
   useEffect(() => {
-    if (!myProfile || !userId) return;
+    if (!userId) return;
+    if (user) return; // mock user, no fetch needed
     const fetchAndScore = async () => {
+      setProfileLoading(true);
       const { data } = await supabase
         .from('profiles')
         .select('id, full_name, avatar_url, interests, major, class_year, extras')
         .eq('id', userId)
         .single();
-      if (data && myProfile) {
-        const result = calculateMatchScore(myProfile, data);
-        if (result.score >= 80) setMatchResult(result);
+      if (data) {
+        setRealProfile(data);
+        if (myProfile) {
+          const result = calculateMatchScore(myProfile, data);
+          if (result.score >= 80) setMatchResult(result);
+        }
       }
+      setProfileLoading(false);
     };
     fetchAndScore();
   }, [userId, myProfile]);
 
   if (!user) {
+    const backBtn = (
+      <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
+        <Feather name="arrow-left" size={20} color="#fff" />
+      </TouchableOpacity>
+    );
+
+    if (profileLoading) {
+      return (
+        <View style={s.root}>
+          <LinearGradient colors={['#7300ff', '#00ac9b']} style={StyleSheet.absoluteFill} />
+          <View style={[s.header, { paddingTop: insets.top }]}>
+            <View style={s.headerInner}>{backBtn}</View>
+          </View>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator size="large" color="#fff" />
+          </View>
+        </View>
+      );
+    }
+
+    if (!realProfile) {
+      return (
+        <View style={s.root}>
+          <LinearGradient colors={['#7300ff', '#00ac9b']} style={StyleSheet.absoluteFill} />
+          <View style={[s.header, { paddingTop: insets.top }]}>
+            <View style={s.headerInner}>{backBtn}</View>
+          </View>
+          <Text style={{ color: '#fff', textAlign: 'center', marginTop: 100, fontFamily: fonts.medium }}>User not found</Text>
+        </View>
+      );
+    }
+
+    const { full_name, avatar_url, interests: rInterests, major, class_year, extras } = realProfile;
+    const rClubs = extras?.clubs || [];
+    const firstName = full_name?.split(' ')[0] ?? '';
+
     return (
       <View style={s.root}>
         <LinearGradient colors={['#7300ff', '#00ac9b']} style={StyleSheet.absoluteFill} />
-        <Text style={{ color: '#fff', textAlign: 'center', marginTop: 100, fontFamily: fonts.medium }}>User not found</Text>
+
+        <View style={[s.header, { paddingTop: insets.top }]}>
+          <View style={s.headerInner}>
+            {backBtn}
+            <View style={{ flex: 1 }} />
+            <TouchableOpacity style={s.moreBtn} onPress={() => setMenuVisible(true)}>
+              <Feather name="more-vertical" size={20} color="rgba(255,255,255,0.9)" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={() => setMenuVisible(false)}>
+          <TouchableOpacity style={s.menuOverlay} activeOpacity={1} onPress={() => setMenuVisible(false)}>
+            <View style={[s.menuCard, { marginTop: insets.top + 52 }]}>
+              <TouchableOpacity style={s.menuItem} onPress={() => { setMenuVisible(false); Alert.alert('Block User', `Block ${firstName}?`, [{ text: 'Cancel', style: 'cancel' }, { text: 'Block', style: 'destructive', onPress: () => {} }]); }}>
+                <Feather name="slash" size={18} color="#ef4444" />
+                <Text style={s.menuItemTextDanger}>Block {firstName}</Text>
+              </TouchableOpacity>
+              <View style={s.menuDivider} />
+              <TouchableOpacity style={s.menuItem} onPress={() => { setMenuVisible(false); Alert.alert('Report User', `Report ${firstName}?`, [{ text: 'Cancel', style: 'cancel' }, { text: 'Report', style: 'destructive', onPress: () => Alert.alert('Reported', 'Thank you.') }]); }}>
+                <Feather name="flag" size={18} color="#ef4444" />
+                <Text style={s.menuItemTextDanger}>Report {firstName}</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 100 }} showsVerticalScrollIndicator={false}>
+          <View style={{ alignItems: 'center', paddingTop: 36, paddingBottom: 16 }}>
+            <View style={s.avatarOuter}>
+              <Avatar uri={avatar_url} name={full_name} size={104} style={{ borderWidth: 0 }} />
+              {matchResult && <MatchBadge score={matchResult.score} breakdown={matchResult.breakdown} name={full_name} />}
+            </View>
+            <Text style={[s.profileName, { marginTop: 14 }]}>{full_name}</Text>
+            <View style={s.uwChip}>
+              <Feather name="check-circle" size={14} color="#7300ff" />
+              <Text style={s.uwChipText}>Verified UW Student</Text>
+            </View>
+          </View>
+
+          {rInterests?.length > 0 && (
+            <View style={s.chipsWrap}>
+              {rInterests.map((i) => (
+                <View key={i} style={s.chip}><Text style={s.chipText}>{i}</Text></View>
+              ))}
+            </View>
+          )}
+
+          <View style={s.actionRow}>
+            {friendship?.status === 'accepted' ? (
+              <TouchableOpacity style={[s.addFriendBtn, { backgroundColor: '#00ac9b' }]} activeOpacity={0.8}
+                onPress={() => Alert.alert('Remove Friend', `Remove ${firstName} as a friend?`, [{ text: 'Cancel', style: 'cancel' }, { text: 'Remove', style: 'destructive', onPress: () => removeFriend(userId) }])}>
+                <Feather name="user-check" size={16} color="#fff" />
+                <Text style={s.addFriendText}>Friends</Text>
+              </TouchableOpacity>
+            ) : friendship?.status === 'pending' && friendship?.direction === 'incoming' ? (
+              <TouchableOpacity style={[s.addFriendBtn, { backgroundColor: '#f59e0b' }]} activeOpacity={0.8} onPress={() => acceptRequest(userId)}>
+                <Feather name="user-check" size={16} color="#fff" />
+                <Text style={s.addFriendText}>Accept Request</Text>
+              </TouchableOpacity>
+            ) : friendship?.status === 'pending' && friendship?.direction === 'outgoing' ? (
+              <TouchableOpacity style={[s.addFriendBtn, { opacity: 0.6 }]} activeOpacity={0.8} onPress={() => removeFriend(userId)}>
+                <Feather name="clock" size={16} color="#fff" />
+                <Text style={s.addFriendText}>Requested</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={s.addFriendBtn} activeOpacity={0.8} onPress={() => sendRequest(userId)}>
+                <Feather name="user-plus" size={16} color="#fff" />
+                <Text style={s.addFriendText}>Add Friend</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={s.messageBtn} activeOpacity={0.8}
+              onPress={() => navigation.navigate('DirectMessage', { userId, userName: full_name })}>
+              <Feather name="send" size={16} color="#fff" />
+              <Text style={s.messageBtnText}>Message</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={s.cardBody}>
+            {(major || class_year || rClubs.length > 0) && (
+              <View style={s.uwSection}>
+                <LinearGradient colors={['#4b0096', '#7300ff']} style={StyleSheet.absoluteFill} borderRadius={12} />
+                <View style={s.uwHeader}>
+                  <Text style={s.uwEmoji}>🎓</Text>
+                  <Text style={s.uwTitle}>University of Washington</Text>
+                </View>
+                <View style={s.uwGrid}>
+                  {class_year && (
+                    <View style={s.uwItem}>
+                      <Feather name="calendar" size={14} color="rgba(255,255,255,0.7)" />
+                      <Text style={s.uwItemLabel}>Class of</Text>
+                      <Text style={s.uwItemValue}>{class_year}</Text>
+                    </View>
+                  )}
+                  {major && (
+                    <View style={s.uwItem}>
+                      <Feather name="book-open" size={14} color="rgba(255,255,255,0.7)" />
+                      <Text style={s.uwItemLabel}>Major</Text>
+                      <Text style={s.uwItemValue}>{major}</Text>
+                    </View>
+                  )}
+                </View>
+                {rClubs.length > 0 && (
+                  <View style={s.uwClubsSection}>
+                    <Text style={s.uwClubsLabel}>Affiliated Clubs</Text>
+                    <View style={s.uwClubsWrap}>
+                      {rClubs.map((club) => (
+                        <View key={club} style={s.uwClub}>
+                          <Text style={s.uwClubText}>{club}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
+        </ScrollView>
       </View>
     );
   }
