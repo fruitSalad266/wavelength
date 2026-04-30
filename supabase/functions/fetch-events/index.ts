@@ -170,8 +170,18 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Filter out multi-day passes and ticket bundles
+    const PASS_PATTERNS = /\b(\d+-day|multi-day|weekend)\s*(pass|ticket|bundle|package|combo|lawn|admission)/i;
+    const BUNDLE_KEYWORDS = /\b(pass|bundle|package|combo)\b.*\b(pass|bundle|package|combo)\b/i;
+    const filteredEvents = rawEvents.filter((ev: Record<string, unknown>) => {
+      const name = (ev.name as string) ?? "";
+      if (PASS_PATTERNS.test(name)) return false;
+      if (BUNDLE_KEYWORDS.test(name)) return false;
+      return true;
+    });
+
     // Map to our schema
-    const rows = rawEvents.map(mapEvent);
+    const rows = filteredEvents.map(mapEvent);
 
     // Upsert into Supabase
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
