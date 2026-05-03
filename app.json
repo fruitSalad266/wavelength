@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.mattcng.wavelength",
+      "bundleIdentifier": "com.wavelengthapp.wavelength",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Wavelength needs access to your photos so you can choose a profile picture.",
         "ITSAppUsesNonExemptEncryption": false
@@ -32,6 +32,11 @@
     },
     "plugins": [
       "expo-secure-store"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "90ecf79b-1fbd-45d8-972a-6e87f86836f6"
+      }
+    }
   }
 }
