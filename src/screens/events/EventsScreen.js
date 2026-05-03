@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   FlatList,
   TextInput,
   TouchableOpacity,
-  Dimensions,
   StatusBar,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,8 +18,58 @@ import { Badge } from '../../components/Badge';
 import { EventImage } from '../../components/EventImage';
 import { fonts } from '../../theme/fonts';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const categories = ['All', 'UW', 'Music', 'Art', 'Food', 'Sports', 'Networking', 'Technology'];
+
+const whenFilters = [
+  { key: 'today', label: 'Today' },
+  { key: 'thisWeek', label: 'This week' },
+  { key: 'thisMonth', label: 'This month' },
+  { key: 'weekend', label: 'Weekend' },
+  { key: 'evening', label: 'Evening' },
+];
+
+const moreFilters = [
+  { key: 'free', label: 'Free' },
+  { key: 'budget', label: 'Under $25' },
+  { key: 'popular', label: 'Popular' },
+  { key: 'intimate', label: 'Intimate' },
+  { key: 'tickets', label: 'Tickets' },
+  { key: 'saved', label: 'Saved' },
+];
+
+/** @returns {number|null} minutes from midnight, or null if unparseable */
+function parseTimeToMinutes(timeStr) {
+  if (!timeStr || typeof timeStr !== 'string') return null;
+  const m = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!m) return null;
+  let h = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10);
+  const ap = m[3].toUpperCase();
+  if (ap === 'PM' && h !== 12) h += 12;
+  if (ap === 'AM' && h === 12) h = 0;
+  return h * 60 + min;
+}
+
+function isWeekendDate(dateStr) {
+  const d = new Date(`${dateStr}T12:00:00`);
+  const day = d.getDay();
+  return day === 0 || day === 6;
+}
+
+function isSameCalendarMonth(dateStr, ref) {
+  const d = new Date(`${dateStr}T12:00:00`);
+  return d.getMonth() === ref.getMonth() && d.getFullYear() === ref.getFullYear();
+}
+
+/** Cheapest listed price, or null if unknown */
+function cheapestListedPrice(event) {
+  const a = event.priceMin;
+  const b = event.priceMax;
+  if (a == null && b == null) return null;
+  if (a == null) return b;
+  if (b == null) return a;
+  return Math.min(a, b);
+}
 
 function formatDate(dateString) {
   const date = new Date(dateString);
@@ -77,25 +126,92 @@ export default function EventsScreen({ navigation }) {
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const searchRef = useRef(null);
+  const [selectedQuickFilters, setSelectedQuickFilters] = useState([]);
   const { events: supabaseEvents, loading } = useEvents();
   const { starredEventIds } = useMyRSVPs();
 
+  const toggleQuickFilter = useCallback((filterKey) => {
+    setSelectedQuickFilters((prev) => (
+      prev.includes(filterKey)
+        ? prev.filter((key) => key !== filterKey)
+        : [...prev, filterKey]
+    ));
+  }, []);
+
   const filteredEvents = useMemo(() => {
-    let events = supabaseEvents;
-    if (selectedCategory !== 'All') {
-      events = events.filter((e) => e.category === selectedCategory);
-    }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      events = events.filter(
-        (e) =>
-          e.title?.toLowerCase().includes(q) ||
-          e.location?.toLowerCase().includes(q) ||
-          e.category?.toLowerCase().includes(q)
-      );
-    }
-    return events;
-  }, [supabaseEvents, selectedCategory, searchQuery]);
+    const now = new Date();
+    const endOfWeek = new Date(now);
+    endOfWeek.setDate(now.getDate() + 7);
+
+    return supabaseEvents.filter((event) => {
+      if (selectedCategory !== 'All' && event.category !== selectedCategory) {
+        return false;
+      }
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        if (
+          !event.title?.toLowerCase().includes(q) &&
+          !event.location?.toLowerCase().includes(q) &&
+          !event.category?.toLowerCase().includes(q)
+        ) {
+          return false;
+        }
+      }
+
+      for (const filterKey of selectedQuickFilters) {
+        if (filterKey === 'today') {
+          const eventDate = new Date(`${event.date}T00:00:00`);
+          if (eventDate.toDateString() !== now.toDateString()) return false;
+        }
+
+        if (filterKey === 'thisWeek') {
+          const eventDate = new Date(`${event.date}T00:00:00`);
+          if (eventDate < now || eventDate > endOfWeek) return false;
+        }
+
+        if (filterKey === 'thisMonth') {
+          if (!isSameCalendarMonth(event.date, now)) return false;
+        }
+
+        if (filterKey === 'weekend') {
+          if (!isWeekendDate(event.date)) return false;
+        }
+
+        if (filterKey === 'evening') {
+          const mins = parseTimeToMinutes(event.time);
+          if (mins == null || mins < 17 * 60) return false;
+        }
+
+        if (filterKey === 'free') {
+          if ((event.priceMin ?? 0) > 0) return false;
+        }
+
+        if (filterKey === 'budget') {
+          const p = cheapestListedPrice(event);
+          if (p == null || p > 25) return false;
+        }
+
+        if (filterKey === 'popular') {
+          if ((event.attendees ?? 0) < 50) return false;
+        }
+
+        if (filterKey === 'intimate') {
+          if ((event.attendees ?? 0) >= 50) return false;
+        }
+
+        if (filterKey === 'tickets') {
+          if (!event.ticketUrl) return false;
+        }
+
+        if (filterKey === 'saved') {
+          if (!starredEventIds.includes(event.id)) return false;
+        }
+      }
+
+      return true;
+    });
+  }, [supabaseEvents, selectedCategory, selectedQuickFilters, searchQuery, starredEventIds]);
 
   const toggleSearch = () => {
     if (searchVisible) {
@@ -171,6 +287,50 @@ export default function EventsScreen({ navigation }) {
                   </Text>
                 </TouchableOpacity>
               ))}
+            </ScrollView>
+            <Text style={s.filterSectionTitle}>When</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.quickFilterRow}
+              style={{ marginTop: 8 }}
+            >
+              {whenFilters.map((filter) => {
+                const isActive = selectedQuickFilters.includes(filter.key);
+                return (
+                  <TouchableOpacity
+                    key={filter.key}
+                    style={[s.quickFilterPill, isActive && s.quickFilterPillActive]}
+                    onPress={() => toggleQuickFilter(filter.key)}
+                  >
+                    <Text style={[s.quickFilterText, isActive && s.quickFilterTextActive]}>
+                      {filter.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <Text style={s.filterSectionTitle}>More</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.quickFilterRow}
+              style={{ marginTop: 8 }}
+            >
+              {moreFilters.map((filter) => {
+                const isActive = selectedQuickFilters.includes(filter.key);
+                return (
+                  <TouchableOpacity
+                    key={filter.key}
+                    style={[s.quickFilterPill, isActive && s.quickFilterPillActive]}
+                    onPress={() => toggleQuickFilter(filter.key)}
+                  >
+                    <Text style={[s.quickFilterText, isActive && s.quickFilterTextActive]}>
+                      {filter.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
             <Text style={s.resultCount}>{filteredEvents.length} events found</Text>
           </>
@@ -249,6 +409,18 @@ const s = StyleSheet.create({
     gap: 8,
     paddingRight: 20,
   },
+  quickFilterRow: {
+    gap: 8,
+    paddingRight: 20,
+  },
+  filterSectionTitle: {
+    color: 'rgba(255,255,255,0.55)',
+    fontSize: 12,
+    fontFamily: fonts.medium,
+    marginTop: 16,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
   categoryPill: {
     paddingHorizontal: 18,
     paddingVertical: 10,
@@ -264,6 +436,26 @@ const s = StyleSheet.create({
     fontFamily: fonts.medium,
   },
   categoryTextActive: {
+    color: '#7300ff',
+  },
+  quickFilterPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.45)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  quickFilterPillActive: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderColor: 'rgba(255,255,255,0.95)',
+  },
+  quickFilterText: {
+    color: '#fff',
+    fontSize: 13,
+    fontFamily: fonts.medium,
+  },
+  quickFilterTextActive: {
     color: '#7300ff',
   },
 
