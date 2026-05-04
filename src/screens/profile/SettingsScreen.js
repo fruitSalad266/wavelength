@@ -1079,6 +1079,8 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 14,
+    backgroundColor: '#fff',
+    borderRadius: 12,
     marginTop: 4,
     marginBottom: 8,
   },

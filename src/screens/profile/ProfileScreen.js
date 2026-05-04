@@ -19,7 +19,6 @@ import { useMyRSVPs } from '../../hooks/useRSVP';
 import { supabase } from '../../lib/supabase';
 import { fonts } from '../../theme/fonts';
 import { getPromptById } from '../../data/profilePrompts';
-import { profileMutualFriends as mutualFriends } from '../../data/mockProfile';
 
 function Card({ children, style }) {
   return <View style={[styles.card, style]}>{children}</View>;
@@ -128,7 +127,6 @@ export default function ProfileScreen({ navigation }) {
   const { profile, user } = useAuth();
   const { pending, friends, acceptRequest, removeFriend } = useFriends();
   const { goingEventIds } = useMyRSVPs();
-  const [friendsExpanded, setFriendsExpanded] = useState(false);
   const [nextEvent, setNextEvent] = useState(null);
 
   useEffect(() => {
@@ -160,10 +158,6 @@ export default function ProfileScreen({ navigation }) {
   const clubs = profile?.extras?.clubs || [];
   const socialLinks = profile?.extras?.social_links || [];
   const prompts = profile?.extras?.prompts || [];
-
-  const PREVIEW_COUNT = 5;
-  const visibleFriends = friendsExpanded ? mutualFriends : mutualFriends.slice(0, PREVIEW_COUNT);
-  const hasMore = mutualFriends.length > PREVIEW_COUNT;
 
   return (
     <View style={styles.root}>
@@ -283,26 +277,32 @@ export default function ProfileScreen({ navigation }) {
             </Card>
           )}
 
-          {/* Friends list */}
+          {/* Friends strip */}
           {friends.length > 0 && (
-            <Card style={{ marginBottom: 12 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                <Feather name="heart" size={16} color="#9810FA" />
-                <Text style={[styles.cardTitle, { flex: 1, marginBottom: 0 }]}>Friends ({friends.length})</Text>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('Friends')}
+              style={styles.friendsStrip}
+            >
+              <View style={styles.friendsStripLeft}>
+                <View style={styles.avatarStack}>
+                  {friends.slice(0, 6).map((f, i) => (
+                    <View key={f.id} style={[styles.stackedAvatar, { marginLeft: i === 0 ? 0 : -10, zIndex: 6 - i }]}>
+                      <Avatar uri={f.avatar_url} name={f.full_name} size={36} style={{ borderWidth: 2, borderColor: '#fff' }} />
+                    </View>
+                  ))}
+                  {friends.length > 6 && (
+                    <View style={[styles.stackedAvatar, styles.overflowBubble, { marginLeft: -10 }]}>
+                      <Text style={styles.overflowText}>+{friends.length - 6}</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.friendsStripText}>
+                  {friends.length} {friends.length === 1 ? 'Friend' : 'Friends'}
+                </Text>
               </View>
-              {friends.map((f) => (
-                <TouchableOpacity
-                  key={f.id}
-                  style={styles.friendRow}
-                  activeOpacity={0.7}
-                  onPress={() => navigation.navigate('UserProfile', { userId: f.id, userName: f.full_name })}
-                >
-                  <Avatar uri={f.avatar_url} name={f.full_name} size={40} style={{ borderWidth: 0 }} />
-                  <Text style={styles.friendRowName} numberOfLines={1}>{f.full_name}</Text>
-                  <Feather name="chevron-right" size={16} color="#9ca3af" />
-                </TouchableOpacity>
-              ))}
-            </Card>
+              <Feather name="chevron-right" size={18} color="#9ca3af" />
+            </TouchableOpacity>
           )}
 
           {/* UW Section */}
@@ -583,17 +583,51 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semiBold,
   },
 
-  // Friends list rows
-  friendRow: {
+  // Friends strip
+  friendsStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  friendsStripLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#f3f4f6',
   },
-  friendRowName: {
-    flex: 1,
+  avatarStack: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  stackedAvatar: {
+    borderRadius: 999,
+  },
+  overflowBubble: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f3f4f6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  overflowText: {
+    fontSize: 12,
+    fontFamily: fonts.semiBold,
+    color: '#4a5565',
+  },
+  friendsStripText: {
     fontSize: 15,
     fontFamily: fonts.semiBold,
     color: '#101828',
