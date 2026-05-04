@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,7 @@ import { useEventGroupChats } from '../../hooks/useGroupChats';
 import { useAuth } from '../../contexts/AuthContext';
 import { calculateMatchScore } from '../../utils/matchScore';
 import { MatchBadge } from '../../components/MatchBadge';
+import { supabase } from '../../lib/supabase';
 import { EVENT as DEFAULT_EVENT_DETAIL, MUTUAL_CONNECTIONS, FRIENDS_GOING } from '../../data/mockEventDetail';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -150,21 +151,42 @@ export default function EventDetailScreen({ route, navigation }) {
   const { profile: myProfile } = useAuth();
   const [markModalVisible, setMarkModalVisible] = useState(false);
   const passedEvent = route?.params?.event;
+  const eventId = route?.params?.eventId || passedEvent?.id;
+  const [fetchedEvent, setFetchedEvent] = useState(null);
+
+  useEffect(() => {
+    if (passedEvent?.title) return;
+    if (!eventId) return;
+    const fetchEvent = async () => {
+      const { data } = await supabase
+        .from('events')
+        .select('id, title, date, time, location, background_image, tags, tickets, detail_type, ticket_url, price_min, price_max, source')
+        .eq('id', eventId)
+        .single();
+      if (data) setFetchedEvent(data);
+    };
+    fetchEvent();
+  }, [eventId, passedEvent]);
+
+  const src = fetchedEvent || passedEvent;
   const event = {
     ...DEFAULT_EVENT_DETAIL,
-    ...(passedEvent ? {
-      id: passedEvent.id,
-      title: passedEvent.title,
-      venue: passedEvent.location,
-      date: formatShortDate(passedEvent.date),
-      time: passedEvent.time,
-      bannerImage: passedEvent.backgroundImage,
-      detailType: passedEvent.detailType,
-      detailCard: passedEvent.detailCard,
-      tags: Array.isArray(passedEvent.tags) && passedEvent.tags.length > 0 ? passedEvent.tags : DEFAULT_EVENT_DETAIL.tags,
-      tickets: passedEvent.tickets,
-      signup: passedEvent.signup,
-      source: passedEvent.source,
+    ...(src ? {
+      id: src.id,
+      title: src.title,
+      venue: src.location,
+      date: formatShortDate(src.date),
+      time: src.time,
+      bannerImage: src.backgroundImage || src.background_image,
+      detailType: src.detailType || src.detail_type,
+      detailCard: src.detailCard,
+      tags: Array.isArray(src.tags) && src.tags.length > 0 ? src.tags : DEFAULT_EVENT_DETAIL.tags,
+      tickets: src.tickets,
+      ticketUrl: src.ticketUrl || src.ticket_url,
+      priceMin: src.priceMin ?? src.price_min,
+      priceMax: src.priceMax ?? src.price_max,
+      signup: src.signup,
+      source: src.source,
     } : {}),
   };
 

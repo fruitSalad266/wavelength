@@ -32,7 +32,8 @@ export function useMessages({ groupChatId, recipientId }) {
         group_chat_id,
         sender:profiles!messages_sender_id_fkey(id, full_name, avatar_url)
       `)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false })
+      .limit(100);
 
     if (groupChatId) {
       query = query.eq('group_chat_id', groupChatId);
@@ -45,7 +46,7 @@ export function useMessages({ groupChatId, recipientId }) {
 
     const { data } = await query;
 
-    const mapped = (data || []).map((m) => ({
+    const mapped = (data || []).reverse().map((m) => ({
       id: m.id,
       body: m.body,
       senderId: m.sender_id,
@@ -165,7 +166,8 @@ export function useDirectMessageThreads() {
       `)
       .is('group_chat_id', null)
       .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(200);
 
     // Group by conversation partner, keep latest message
     const threadMap = {};

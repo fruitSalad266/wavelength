@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,6 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useEvents } from '../../hooks/useEvents';
 import { useMyRSVPs } from '../../hooks/useRSVP';
 import { EventImage } from '../../components/EventImage';
 import { Badge } from '../../components/Badge';
@@ -48,15 +47,7 @@ function SavedEventCard({ event, onPress }) {
 
 export default function SavedEventsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { events, loading: eventsLoading } = useEvents();
-  const { starredEventIds, goingEventIds, loading: rsvpLoading } = useMyRSVPs();
-
-  const loading = eventsLoading || rsvpLoading;
-
-  const savedEvents = useMemo(() => {
-    const ids = new Set([...starredEventIds, ...goingEventIds]);
-    return events.filter((e) => ids.has(e.id));
-  }, [events, starredEventIds, goingEventIds]);
+  const { savedEvents, loading } = useMyRSVPs();
 
   return (
     <View style={s.root}>

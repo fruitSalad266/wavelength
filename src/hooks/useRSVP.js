@@ -167,6 +167,7 @@ export function useMyRSVPs() {
   const { user } = useAuth();
   const [rsvps, setRsvps] = useState([]);
   const [starred, setStarred] = useState([]);
+  const [savedEvents, setSavedEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const fetchAll = useCallback(async () => {
@@ -184,6 +185,34 @@ export function useMyRSVPs() {
     });
     setRsvps(goingIds);
     setStarred(starredIds);
+
+    const allIds = [...new Set([...goingIds, ...starredIds])];
+    if (allIds.length > 0) {
+      const { data: events } = await supabase
+        .from('events')
+        .select('id,title,date,time,location,attendees,category,background_image,tags,tickets,detail_type,ticket_url,price_min,price_max,source')
+        .in('id', allIds);
+      setSavedEvents((events || []).map((row) => ({
+        id: row.id,
+        title: row.title,
+        date: row.date,
+        time: row.time,
+        location: row.location,
+        attendees: row.attendees ?? 0,
+        category: row.category,
+        backgroundImage: row.background_image,
+        tags: row.tags ?? [],
+        tickets: row.tickets,
+        detailType: row.detail_type,
+        ticketUrl: row.ticket_url,
+        priceMin: row.price_min,
+        priceMax: row.price_max,
+        source: row.source,
+      })));
+    } else {
+      setSavedEvents([]);
+    }
+
     setLoading(false);
   }, [user]);
 
@@ -191,5 +220,5 @@ export function useMyRSVPs() {
     fetchAll();
   }, [fetchAll]);
 
-  return { goingEventIds: rsvps, starredEventIds: starred, loading, refresh: fetchAll };
+  return { goingEventIds: rsvps, starredEventIds: starred, savedEvents, loading, refresh: fetchAll };
 }

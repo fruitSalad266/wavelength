@@ -57,6 +57,7 @@ export default function UserProfileScreen({ navigation, route }) {
   const [matchResult, setMatchResult] = useState(null);
   const [realProfile, setRealProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(!user);
+  const [nextEvent, setNextEvent] = useState(null);
 
   // Fetch real Supabase profile for display + scoring
   useEffect(() => {
@@ -66,7 +67,7 @@ export default function UserProfileScreen({ navigation, route }) {
       setProfileLoading(true);
       const { data } = await supabase
         .from('profiles')
-        .select('id, full_name, avatar_url, banner_url, interests, major, class_year, extras')
+        .select('id, full_name, avatar_url, banner_url, interests, major, class_year, extras, settings')
         .eq('id', userId)
         .single();
       if (data) {
@@ -80,6 +81,38 @@ export default function UserProfileScreen({ navigation, route }) {
     };
     fetchAndScore();
   }, [userId, myProfile]);
+
+  // Fetch next upcoming event this user is attending
+  useEffect(() => {
+    if (!userId || user) return; // skip for mock users
+    if (!realProfile) return;
+
+    const privacySetting = realProfile.settings?.privacy?.showNextEvent || 'friends';
+    const isFriend = friendship?.status === 'accepted';
+
+    if (privacySetting === 'private') return;
+    if (privacySetting === 'friends' && !isFriend) return;
+
+    const today = new Date().toISOString().split('T')[0];
+    const fetchNextEvent = async () => {
+      const { data } = await supabase
+        .from('event_rsvps')
+        .select('event:events!event_rsvps_event_id_fkey(id, title, date, time, location, background_image)')
+        .eq('user_id', userId)
+        .eq('status', 'going')
+        .eq('is_public', true);
+
+      if (!data || data.length === 0) return;
+
+      const upcoming = data
+        .map((r) => r.event)
+        .filter((e) => e && e.date >= today)
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      if (upcoming.length > 0) setNextEvent(upcoming[0]);
+    };
+    fetchNextEvent();
+  }, [userId, user, realProfile, friendship]);
 
   if (!user) {
     const backBtn = (
@@ -252,6 +285,42 @@ export default function UserProfileScreen({ navigation, route }) {
                   </View>
                 )}
               </View>
+            )}
+
+            {nextEvent && (
+              <TouchableOpacity
+                style={s.nextEventCard}
+                activeOpacity={0.8}
+                onPress={() => navigation.navigate('EventDetail', { eventId: nextEvent.id })}
+              >
+                {nextEvent.background_image ? (
+                  <Image source={{ uri: nextEvent.background_image }} style={s.nextEventBg} resizeMode="cover" />
+                ) : (
+                  <LinearGradient colors={['#00ac9b', '#007a6e']} style={s.nextEventBg} />
+                )}
+                <LinearGradient colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.7)']} style={StyleSheet.absoluteFill} borderRadius={12} />
+                <View style={s.nextEventContent}>
+                  <View style={s.nextEventHeader}>
+                    <Feather name="calendar" size={16} color="rgba(255,255,255,0.8)" />
+                    <Text style={s.nextEventLabel}>Next Event</Text>
+                  </View>
+                  <Text style={s.nextEventTitle} numberOfLines={2}>{nextEvent.title}</Text>
+                  <View style={s.nextEventMeta}>
+                    {nextEvent.date && (
+                      <Text style={s.nextEventDate}>
+                        {new Date(`${nextEvent.date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </Text>
+                    )}
+                    {nextEvent.time && <Text style={s.nextEventDate}> · {nextEvent.time}</Text>}
+                  </View>
+                  {nextEvent.location && (
+                    <View style={s.nextEventLocRow}>
+                      <Feather name="map-pin" size={12} color="rgba(255,255,255,0.7)" />
+                      <Text style={s.nextEventLoc} numberOfLines={1}>{nextEvent.location}</Text>
+                    </View>
+                  )}
+                </View>
+              </TouchableOpacity>
             )}
           </View>
         </ScrollView>
@@ -741,4 +810,16 @@ const s = StyleSheet.create({
   friendExpandedName: { fontSize: 15, fontFamily: fonts.semiBold, color: '#101828' },
   collapseFriendsBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, marginTop: 4 },
   collapseFriendsText: { fontSize: 13, fontFamily: fonts.medium, color: '#7300ff' },
+
+  // Next Event card
+  nextEventCard: { borderRadius: 12, height: 180, marginBottom: 12, overflow: 'hidden' },
+  nextEventBg: { ...StyleSheet.absoluteFillObject, borderRadius: 12 },
+  nextEventContent: { flex: 1, justifyContent: 'flex-end', padding: 18 },
+  nextEventHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  nextEventLabel: { fontSize: 12, fontFamily: fonts.medium, color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: 0.5 },
+  nextEventTitle: { fontSize: 20, fontFamily: fonts.semiBold, color: '#fff', marginBottom: 4 },
+  nextEventMeta: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
+  nextEventDate: { fontSize: 14, fontFamily: fonts.regular, color: 'rgba(255,255,255,0.9)' },
+  nextEventLocRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  nextEventLoc: { fontSize: 13, fontFamily: fonts.regular, color: 'rgba(255,255,255,0.7)' },
 });

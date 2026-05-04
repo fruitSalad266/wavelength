@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
-  Dimensions,
   Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,11 +15,11 @@ import { Avatar } from '../../components/Avatar';
 import { Badge } from '../../components/Badge';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFriends } from '../../hooks/useFriends';
+import { useMyRSVPs } from '../../hooks/useRSVP';
+import { supabase } from '../../lib/supabase';
 import { fonts } from '../../theme/fonts';
 import { getPromptById } from '../../data/profilePrompts';
-import { profileRecentEvents as recentEvents, profileMutualFriends as mutualFriends } from '../../data/mockProfile';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import { profileMutualFriends as mutualFriends } from '../../data/mockProfile';
 
 function Card({ children, style }) {
   return <View style={[styles.card, style]}>{children}</View>;
@@ -30,20 +29,6 @@ function InterestChip({ label }) {
   return (
     <View style={styles.chip}>
       <Text style={styles.chipText}>{label}</Text>
-    </View>
-  );
-}
-
-function EventThumb({ event }) {
-  const size = (SCREEN_WIDTH - 48 - 24 - 12) / 3;
-  return (
-    <View style={[styles.eventThumb, { width: size, height: size }]}>
-      <Image source={{ uri: event.image }} style={StyleSheet.absoluteFill} />
-      <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)']} style={StyleSheet.absoluteFill} />
-      <View style={styles.eventThumbContent}>
-        <Text style={styles.eventThumbTitle} numberOfLines={2}>{event.title}</Text>
-        <Text style={styles.eventThumbDate}>{event.date}</Text>
-      </View>
     </View>
   );
 }
@@ -140,9 +125,30 @@ function FriendExpandedRow({ friend }) {
 
 export default function ProfileScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const { pending, friends, acceptRequest, removeFriend } = useFriends();
+  const { goingEventIds } = useMyRSVPs();
   const [friendsExpanded, setFriendsExpanded] = useState(false);
+  const [nextEvent, setNextEvent] = useState(null);
+
+  useEffect(() => {
+    if (!goingEventIds || goingEventIds.length === 0) {
+      setNextEvent(null);
+      return;
+    }
+    const today = new Date().toISOString().split('T')[0];
+    const fetchNextEvent = async () => {
+      const { data } = await supabase
+        .from('events')
+        .select('id, title, date, time, location, background_image')
+        .in('id', goingEventIds)
+        .gte('date', today)
+        .order('date', { ascending: true })
+        .limit(1);
+      setNextEvent(data?.[0] || null);
+    };
+    fetchNextEvent();
+  }, [goingEventIds]);
 
   const displayName = profile?.full_name || 'User';
   const avatarUrl = profile?.avatar_url;
@@ -342,15 +348,42 @@ export default function ProfileScreen({ navigation }) {
             <ProfilePromptCard key={p.id} promptData={p} />
           ))}
 
-          {/* Recently Attended Events */}
-          <Card>
-            <Text style={styles.cardTitle}>Recently Attended Events</Text>
-            <View style={styles.eventGrid}>
-              {recentEvents.map((event) => (
-                <EventThumb key={event.id} event={event} />
-              ))}
-            </View>
-          </Card>
+          {/* Next Event */}
+          {nextEvent && (
+            <TouchableOpacity
+              style={styles.nextEventCard}
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('EventDetail', { eventId: nextEvent.id })}
+            >
+              {nextEvent.background_image ? (
+                <Image source={{ uri: nextEvent.background_image }} style={styles.nextEventBg} resizeMode="cover" />
+              ) : (
+                <LinearGradient colors={['#00ac9b', '#007a6e']} style={styles.nextEventBg} />
+              )}
+              <LinearGradient colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.7)']} style={StyleSheet.absoluteFill} borderRadius={12} />
+              <View style={styles.nextEventContent}>
+                <View style={styles.nextEventHeader}>
+                  <Feather name="calendar" size={16} color="rgba(255,255,255,0.8)" />
+                  <Text style={styles.nextEventLabel}>Next Event</Text>
+                </View>
+                <Text style={styles.nextEventTitle} numberOfLines={2}>{nextEvent.title}</Text>
+                <View style={styles.nextEventMeta}>
+                  {nextEvent.date && (
+                    <Text style={styles.nextEventDate}>
+                      {new Date(`${nextEvent.date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </Text>
+                  )}
+                  {nextEvent.time && <Text style={styles.nextEventDate}> · {nextEvent.time}</Text>}
+                </View>
+                {nextEvent.location && (
+                  <View style={styles.nextEventLocRow}>
+                    <Feather name="map-pin" size={12} color="rgba(255,255,255,0.7)" />
+                    <Text style={styles.nextEventLoc} numberOfLines={1}>{nextEvent.location}</Text>
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
+          )}
 
           {/* Connect */}
           {socialLinks.length > 0 && (
@@ -704,33 +737,6 @@ const styles = StyleSheet.create({
   },
 
   // Event grid
-  eventGrid: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  eventThumb: {
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  eventThumbContent: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 8,
-  },
-  eventThumbTitle: {
-    color: '#fff',
-    fontSize: 11,
-    fontFamily: fonts.semiBold,
-    marginBottom: 2,
-  },
-  eventThumbDate: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 9,
-    fontFamily: fonts.regular,
-  },
-
   // Social grid
   socialGrid: {
     gap: 4,
@@ -894,4 +900,16 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     color: '#7300ff',
   },
+
+  // Next Event card
+  nextEventCard: { borderRadius: 12, height: 180, marginBottom: 12, overflow: 'hidden' },
+  nextEventBg: { ...StyleSheet.absoluteFillObject, borderRadius: 12 },
+  nextEventContent: { flex: 1, justifyContent: 'flex-end', padding: 18 },
+  nextEventHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  nextEventLabel: { fontSize: 12, fontFamily: fonts.medium, color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: 0.5 },
+  nextEventTitle: { fontSize: 20, fontFamily: fonts.semiBold, color: '#fff', marginBottom: 4 },
+  nextEventMeta: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
+  nextEventDate: { fontSize: 14, fontFamily: fonts.regular, color: 'rgba(255,255,255,0.9)' },
+  nextEventLocRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  nextEventLoc: { fontSize: 13, fontFamily: fonts.regular, color: 'rgba(255,255,255,0.7)' },
 });

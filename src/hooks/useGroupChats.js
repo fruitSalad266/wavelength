@@ -35,7 +35,7 @@ export function useMyGroupChats() {
     // Fetch chat details
     const { data: chatRows } = await supabase
       .from('group_chats')
-      .select('*')
+      .select('id, name, icon, description, is_verified, event_id, created_at')
       .in('id', chatIds);
 
     // Fetch member counts
@@ -105,7 +105,7 @@ export function useEventGroupChats(eventId) {
 
     const { data: chatRows } = await supabase
       .from('group_chats')
-      .select('*')
+      .select('id, name, icon, description, is_verified, event_id, created_at')
       .eq('event_id', eventId);
 
     if (!chatRows || chatRows.length === 0) {
@@ -201,7 +201,7 @@ export function useGroupChat(groupChatId) {
     if (!groupChatId) return;
 
     const [{ data: groupData }, { data: memberRows }] = await Promise.all([
-      supabase.from('group_chats').select('*').eq('id', groupChatId).single(),
+      supabase.from('group_chats').select('id, name, icon, description, is_verified, event_id, created_at, created_by').eq('id', groupChatId).single(),
       supabase
         .from('group_chat_members')
         .select('user_id, profiles(id, full_name, avatar_url, major, class_year)')

@@ -52,7 +52,8 @@ async function fetchEvents() {
     .from('events')
     .select('id,title,date,time,location,attendees,category,background_image,tags,tickets,detail_type,ticket_url,price_min,price_max,source')
     .gt('date', today)
-    .order('date', { ascending: true });
+    .order('date', { ascending: true })
+    .limit(200);
 
   if (!error && data) {
     cachedEvents = data.map(mapRow);

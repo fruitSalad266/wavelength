@@ -22,6 +22,7 @@ export function EventImage({ uri, source, style }) {
       <Image
         source={{ uri }}
         style={[StyleSheet.absoluteFill, style]}
+        resizeMode="cover"
         onError={() => setFailed(true)}
       />
     );

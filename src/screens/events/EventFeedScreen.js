@@ -148,7 +148,7 @@ export default function EventFeedScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { profile } = useAuth();
   const { events: supabaseEvents, loading } = useEvents();
-  const { goingEventIds, starredEventIds, refresh: refreshRSVPs } = useMyRSVPs();
+  const { goingEventIds, starredEventIds, savedEvents: allSavedEvents, refresh: refreshRSVPs } = useMyRSVPs();
   const { recommendations, refresh: refreshRecommendations } = useRecommendedEvents({ limit: 5 });
 
   // Refresh RSVP data whenever this screen comes into focus
@@ -169,15 +169,15 @@ export default function EventFeedScreen({ navigation }) {
 
   // Events user is going to (future only, chronological)
   const goingEvents = useMemo(
-    () => futureEvents.filter((e) => goingEventIds.includes(e.id)).sort((a, b) => a.date.localeCompare(b.date)),
-    [futureEvents, goingEventIds]
+    () => allSavedEvents.filter((e) => goingEventIds.includes(e.id) && e.date >= today).sort((a, b) => a.date.localeCompare(b.date)),
+    [allSavedEvents, goingEventIds, today]
   );
 
   // Saved/starred events (future only)
-  const savedEvents = useMemo(() => {
-    const ids = new Set([...starredEventIds, ...goingEventIds]);
-    return futureEvents.filter((e) => ids.has(e.id));
-  }, [futureEvents, starredEventIds, goingEventIds]);
+  const savedEvents = useMemo(
+    () => allSavedEvents.filter((e) => e.date >= today),
+    [allSavedEvents, today]
+  );
 
   return (
     <View style={styles.root}>

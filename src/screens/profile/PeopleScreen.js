@@ -88,7 +88,8 @@ export default function PeopleScreen({ navigation }) {
       .from('profiles')
       .select('id, full_name, avatar_url, major, class_year')
       .neq('id', user.id)
-      .order('full_name');
+      .order('full_name')
+      .limit(100);
     setAllUsers(data || []);
     setLoading(false);
   }, [user]);

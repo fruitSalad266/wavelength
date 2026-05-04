@@ -11,7 +11,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { useEvents } from '../../hooks/useEvents';
 import { useMyRSVPs } from '../../hooks/useRSVP';
 import { EventImage } from '../../components/EventImage';
 import { Badge } from '../../components/Badge';
@@ -61,8 +60,7 @@ function YourEventCard({ event, onPress }) {
 
 export default function YourEventsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { events, loading: eventsLoading } = useEvents();
-  const { goingEventIds, loading: rsvpLoading, refresh: refreshRSVPs } = useMyRSVPs();
+  const { goingEventIds, savedEvents, loading: rsvpLoading, refresh: refreshRSVPs } = useMyRSVPs();
 
   useFocusEffect(
     useCallback(() => {
@@ -70,14 +68,14 @@ export default function YourEventsScreen({ navigation }) {
     }, [refreshRSVPs])
   );
 
-  const loading = eventsLoading || rsvpLoading;
+  const loading = rsvpLoading;
   const today = getLocalToday();
 
   const yourEvents = useMemo(() => {
-    return events
+    return savedEvents
       .filter((e) => goingEventIds.includes(e.id) && e.date >= today)
       .sort((a, b) => a.date.localeCompare(b.date));
-  }, [events, goingEventIds, today]);
+  }, [savedEvents, goingEventIds, today]);
 
   return (
     <View style={s.root}>

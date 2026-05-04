@@ -515,6 +515,12 @@ function PrivacyTab({ data, setData }) {
         <ToggleRow title="Show my location" value={data.showLocation} onValueChange={(v) => setData({ ...data, showLocation: v })} />
         <ToggleRow title="Show my age range" value={data.showAge} onValueChange={(v) => setData({ ...data, showAge: v })} />
         <ToggleRow title="Show mutual friends" value={data.showMutualFriends} onValueChange={(v) => setData({ ...data, showMutualFriends: v })} />
+        <PickerRow
+          label="Who can see my next event?"
+          value={data.showNextEvent}
+          options={VISIBILITY_OPTIONS}
+          onSelect={(v) => setData({ ...data, showNextEvent: v })}
+        />
       </Card>
     </View>
   );
@@ -621,6 +627,7 @@ export default function SettingsScreen({ navigation }) {
     showLocation: profile?.settings?.privacy?.showLocation !== false,
     showAge: profile?.settings?.privacy?.showAge !== false,
     showMutualFriends: profile?.settings?.privacy?.showMutualFriends !== false,
+    showNextEvent: profile?.settings?.privacy?.showNextEvent || 'friends',
   });
 
   const [notifData, setNotifData] = useState({
