@@ -572,7 +572,7 @@ export default function UserProfileScreen({ navigation, route }) {
             <Text style={s.cardTitle}>Connect</Text>
             <View style={s.socialGrid}>
               {user.socialLinks.map((link, idx) => (
-                <TouchableOpacity key={idx} style={s.socialRow} onPress={() => Linking.openURL(link.url)}>
+                <TouchableOpacity key={idx} style={s.socialRow} onPress={() => link.url && Linking.openURL(link.url)}>
                   <Feather name={link.icon} size={18} color={link.color} />
                   <Text style={s.socialLabel}>{link.label}</Text>
                 </TouchableOpacity>

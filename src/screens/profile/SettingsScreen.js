@@ -162,10 +162,10 @@ const RADIUS_OPTIONS = [
 ];
 
 const SOCIAL_PLATFORMS = [
-  { key: 'instagram', icon: 'instagram', label: 'Instagram', placeholder: '@username', color: colors.instagram },
-  { key: 'twitter', icon: 'twitter', label: 'X / Twitter', placeholder: '@handle', color: colors.twitter },
-  { key: 'spotify', icon: 'music', label: 'Spotify', placeholder: 'username', color: colors.spotify },
-  { key: 'linkedin', icon: 'linkedin', label: 'LinkedIn', placeholder: 'profile-slug', color: colors.linkedin },
+  { key: 'instagram', icon: 'instagram', label: 'Instagram', placeholder: '@username', color: colors.instagram, urlBase: 'https://instagram.com/' },
+  { key: 'twitter', icon: 'twitter', label: 'X / Twitter', placeholder: '@handle', color: colors.twitter, urlBase: 'https://x.com/' },
+  { key: 'spotify', icon: 'music', label: 'Spotify', placeholder: 'username', color: colors.spotify, urlBase: 'https://open.spotify.com/user/' },
+  { key: 'linkedin', icon: 'linkedin', label: 'LinkedIn', placeholder: 'profile-slug', color: colors.linkedin, urlBase: 'https://linkedin.com/in/' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -680,12 +680,15 @@ export default function SettingsScreen({ navigation }) {
       // Build social links array from map
       const socialLinks = SOCIAL_PLATFORMS
         .filter((p) => profileData.socials[p.key]?.trim())
-        .map((p) => ({
-          icon: p.icon,
-          color: p.color,
-          label: profileData.socials[p.key].trim(),
-          url: '',
-        }));
+        .map((p) => {
+          const handle = profileData.socials[p.key].trim().replace(/^@/, '');
+          return {
+            icon: p.icon,
+            color: p.color,
+            label: profileData.socials[p.key].trim(),
+            url: p.urlBase + handle,
+          };
+        });
 
       // Filter prompts with non-empty answers
       const cleanPrompts = prompts.filter((p) => {

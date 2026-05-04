@@ -394,7 +394,7 @@ export default function ProfileScreen({ navigation }) {
                   <TouchableOpacity
                     key={idx}
                     style={styles.socialRow}
-                    onPress={() => Linking.openURL(link.url)}
+                    onPress={() => link.url && Linking.openURL(link.url)}
                   >
                     <Feather name={link.icon || 'link'} size={18} color={link.color || '#7300ff'} />
                     <Text style={styles.socialLabel}>{link.label}</Text>
