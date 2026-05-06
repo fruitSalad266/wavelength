@@ -475,7 +475,6 @@ const s = StyleSheet.create({
   },
   eventCardImage: {
     ...StyleSheet.absoluteFillObject,
-    resizeMode: 'cover',
   },
   eventCardOverlay: {
     ...StyleSheet.absoluteFillObject,

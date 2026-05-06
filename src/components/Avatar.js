@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Image, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { fonts } from '../theme/fonts';
 
 export function Avatar({ uri, name, size = 32, style }) {
@@ -12,6 +13,9 @@ export function Avatar({ uri, name, size = 32, style }) {
         <Image
           source={{ uri }}
           style={[styles.image, { width: size, height: size, borderRadius: size / 2 }]}
+          contentFit="cover"
+          cachePolicy="disk"
+          transition={200}
           onError={() => setFailed(true)}
         />
       ) : (
@@ -29,9 +33,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#fff',
   },
-  image: {
-    resizeMode: 'cover',
-  },
+  image: {},
   fallback: {
     backgroundColor: 'rgba(255,255,255,0.3)',
     alignItems: 'center',

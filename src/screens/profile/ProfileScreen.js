@@ -4,10 +4,10 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Image,
   TouchableOpacity,
   Linking,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -194,7 +194,9 @@ export default function ProfileScreen({ navigation }) {
             <Image
               source={{ uri: profile.banner_url }}
               style={StyleSheet.absoluteFill}
-              resizeMode="cover"
+              contentFit="cover"
+              cachePolicy="disk"
+              transition={200}
             />
           ) : (
             <LinearGradient
@@ -356,7 +358,7 @@ export default function ProfileScreen({ navigation }) {
               onPress={() => navigation.navigate('EventDetail', { eventId: nextEvent.id })}
             >
               {nextEvent.background_image ? (
-                <Image source={{ uri: nextEvent.background_image }} style={styles.nextEventBg} resizeMode="cover" />
+                <Image source={{ uri: nextEvent.background_image }} style={styles.nextEventBg} contentFit="cover" cachePolicy="disk" transition={200} />
               ) : (
                 <LinearGradient colors={['#00ac9b', '#007a6e']} style={styles.nextEventBg} />
               )}

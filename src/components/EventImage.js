@@ -1,17 +1,10 @@
 import React, { useState } from 'react';
-import { View, Image, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 
 const UW_LOGO = require('../../assets/uw-logo.png');
 const UW_SOURCES = ['huskylink', 'trumba'];
 
-/**
- * Event image with fallback.
- * - If the event has a valid backgroundImage URL, renders it.
- * - If it fails to load or is missing, shows the UW logo on a purple
- *   background for UW-sourced events, or a plain purple background otherwise.
- *
- * Props: uri, source, style (applied to outer container)
- */
 export function EventImage({ uri, source, style }) {
   const [failed, setFailed] = useState(false);
   const isUW = UW_SOURCES.includes(source);
@@ -22,7 +15,9 @@ export function EventImage({ uri, source, style }) {
       <Image
         source={{ uri }}
         style={[StyleSheet.absoluteFill, style]}
-        resizeMode="cover"
+        contentFit="cover"
+        cachePolicy="disk"
+        transition={200}
         onError={() => setFailed(true)}
       />
     );
@@ -31,7 +26,7 @@ export function EventImage({ uri, source, style }) {
   return (
     <View style={[StyleSheet.absoluteFill, styles.fallback, style]}>
       {isUW ? (
-        <Image source={UW_LOGO} style={styles.uwLogo} resizeMode="contain" />
+        <Image source={UW_LOGO} style={styles.uwLogo} contentFit="contain" />
       ) : (
         <View style={styles.genericIcon} />
       )}

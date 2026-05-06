@@ -4,12 +4,12 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Image,
   TouchableOpacity,
   FlatList,
   Dimensions,
   StatusBar,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -188,7 +188,7 @@ export default function EventFeedScreen({ navigation }) {
         <View style={styles.headerInner}>
           <View style={styles.headerLeft}>
             <LinearGradient colors={['#7300ff', '#00ac9b']} style={styles.logoBox}>
-              <Image source={require('../../../assets/splash-icon.png')} style={styles.logoImage} />
+              <Image source={require('../../../assets/splash-icon.png')} style={styles.logoImage} contentFit="contain" tintColor="#fff" />
             </LinearGradient>
             <Text style={styles.headerTitle}>Wavelength</Text>
           </View>
@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   logoBox: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  logoImage: { width: 40, height: 40, resizeMode: 'contain', tintColor: '#fff' },
+  logoImage: { width: 40, height: 40 },
   headerTitle: { color: '#fff', fontSize: 22, fontFamily: fonts.regular, letterSpacing: 0.5 },
   notifBtn: { position: 'relative', padding: 8 },
   notifDot: {
@@ -343,12 +343,12 @@ const styles = StyleSheet.create({
   welcomeSub: { color: '#c4dcff', fontSize: 16, fontFamily: fonts.regular },
   horizontalList: { gap: 14, paddingRight: 20 },
   yourEventCard: { height: 140, borderRadius: 14, overflow: 'hidden', marginBottom: 10 },
-  yourEventImage: { ...StyleSheet.absoluteFillObject, resizeMode: 'cover' },
+  yourEventImage: { ...StyleSheet.absoluteFillObject },
   yourEventOverlay: { ...StyleSheet.absoluteFillObject },
   yourEventContent: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 14, gap: 4 },
   yourEventTitle: { color: '#fff', fontSize: 17, fontFamily: fonts.semiBold, marginBottom: 2 },
   friendCard: { height: 190, borderRadius: 14, overflow: 'hidden', marginTop: 12 },
-  friendCardImage: { ...StyleSheet.absoluteFillObject, resizeMode: 'cover' },
+  friendCardImage: { ...StyleSheet.absoluteFillObject },
   friendCardOverlay: { ...StyleSheet.absoluteFillObject },
   friendCardTop: {
     position: 'absolute', top: 14, left: 14, right: 14,
@@ -363,7 +363,7 @@ const styles = StyleSheet.create({
   upcomingTitle: { color: '#fff', fontSize: 26, fontFamily: fonts.semiBold, marginBottom: 4 },
   upcomingSub: { color: '#c4dcff', fontSize: 15, fontFamily: fonts.regular },
   eventCard: { height: 240, borderRadius: 14, overflow: 'hidden', marginTop: 16, marginHorizontal: 0 },
-  eventCardImage: { ...StyleSheet.absoluteFillObject, resizeMode: 'cover' },
+  eventCardImage: { ...StyleSheet.absoluteFillObject },
   eventCardOverlay: { ...StyleSheet.absoluteFillObject },
   eventCardContent: { ...StyleSheet.absoluteFillObject, padding: 18, justifyContent: 'space-between' },
   eventCardTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
   },
-  smallCardImage: { resizeMode: 'cover' },
+  smallCardImage: {},
   smallCardOverlay: { ...StyleSheet.absoluteFillObject },
   smallCardContent: {
     position: 'absolute',

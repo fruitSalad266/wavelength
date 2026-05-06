@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { Image } from 'expo-image';
 import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext(null);
@@ -15,6 +16,10 @@ export function AuthProvider({ children }) {
       .eq('id', userId)
       .single();
     setProfile(data);
+    if (data) {
+      const urls = [data.avatar_url, data.banner_url].filter(Boolean);
+      if (urls.length > 0) Image.prefetch(urls);
+    }
   };
 
   useEffect(() => {

@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Image,
   TouchableOpacity,
   Dimensions,
   Linking,
@@ -12,6 +11,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -184,7 +184,7 @@ export default function UserProfileScreen({ navigation, route }) {
         <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 100 }} showsVerticalScrollIndicator={false}>
           <View style={s.banner}>
             {banner_url ? (
-              <Image source={{ uri: banner_url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+              <Image source={{ uri: banner_url }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="disk" transition={200} />
             ) : (
               <LinearGradient colors={['#5a00cc', '#7300ff']} style={StyleSheet.absoluteFill} />
             )}
@@ -294,7 +294,7 @@ export default function UserProfileScreen({ navigation, route }) {
                 onPress={() => navigation.navigate('EventDetail', { eventId: nextEvent.id })}
               >
                 {nextEvent.background_image ? (
-                  <Image source={{ uri: nextEvent.background_image }} style={s.nextEventBg} resizeMode="cover" />
+                  <Image source={{ uri: nextEvent.background_image }} style={s.nextEventBg} contentFit="cover" cachePolicy="disk" transition={200} />
                 ) : (
                   <LinearGradient colors={['#00ac9b', '#007a6e']} style={s.nextEventBg} />
                 )}
@@ -388,7 +388,7 @@ export default function UserProfileScreen({ navigation, route }) {
       >
         {/* Banner */}
         <View style={s.banner}>
-          <Image source={{ uri: user.banner }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          <Image source={{ uri: user.banner }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="disk" transition={200} />
           <LinearGradient
             colors={['transparent', 'transparent', 'rgba(115,0,255,0.6)', '#7300ff']}
             locations={[0, 0.35, 0.75, 1]}

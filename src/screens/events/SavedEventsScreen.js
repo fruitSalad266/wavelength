@@ -136,7 +136,7 @@ const s = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 14,
   },
-  cardImage: { resizeMode: 'cover' },
+  cardImage: {},
   cardOverlay: { ...StyleSheet.absoluteFillObject },
   cardContent: {
     ...StyleSheet.absoluteFillObject,
