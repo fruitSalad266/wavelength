@@ -25,6 +25,27 @@ export default function LoginScreen({ navigation }) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const handleForgotPassword = async () => {
+    if (!email) {
+      Alert.alert('Enter your email', 'Please type your @uw.edu email first, then tap Forgot Password.');
+      return;
+    }
+    if (!email.endsWith('@uw.edu')) {
+      Alert.alert('UW emails only', 'Please use your @uw.edu email address.');
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'wavelength://reset-password',
+    });
+    setLoading(false);
+    if (error) {
+      Alert.alert('Error', error.message);
+    } else {
+      Alert.alert('Check your email', 'We sent a password reset link to your inbox.');
+    }
+  };
+
   const handleEmailLogin = async () => {
     if (!email || !password) {
       Alert.alert('Missing fields', 'Please enter your email and password.');
@@ -90,6 +111,10 @@ export default function LoginScreen({ navigation }) {
                 <Feather name={showPassword ? 'eye-off' : 'eye'} size={18} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
+
+            <TouchableOpacity onPress={handleForgotPassword} style={s.forgotBtn}>
+              <Text style={s.forgotText}>Forgot Password?</Text>
+            </TouchableOpacity>
 
             <TouchableOpacity style={s.loginBtn} onPress={handleEmailLogin} disabled={loading}>
               {loading ? (
@@ -166,6 +191,12 @@ const s = StyleSheet.create({
     color: colors.text,
   },
   eyeBtn: { padding: 4 },
+  forgotBtn: { alignSelf: 'flex-end' },
+  forgotText: {
+    fontSize: 14,
+    fontFamily: fonts.semiBold,
+    color: 'rgba(255,255,255,0.85)',
+  },
   loginBtn: {
     backgroundColor: colors.primary,
     height: 52,

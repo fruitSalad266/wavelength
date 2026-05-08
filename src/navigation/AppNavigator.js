@@ -28,6 +28,16 @@ import SavedEventsScreen from '../screens/events/SavedEventsScreen';
 import YourEventsScreen from '../screens/events/YourEventsScreen';
 import PeopleScreen from '../screens/profile/PeopleScreen';
 import FriendsScreen from '../screens/profile/FriendsScreen';
+import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
+
+const linking = {
+  prefixes: ['wavelength://'],
+  config: {
+    screens: {
+      ResetPassword: 'reset-password',
+    },
+  },
+};
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -100,7 +110,7 @@ function HomeTabs() {
 }
 
 export default function AppNavigator() {
-  const { session, loading, needsOnboarding } = useAuth();
+  const { session, loading, needsOnboarding, passwordRecovery, clearPasswordRecovery } = useAuth();
 
   if (loading) {
     return (
@@ -111,9 +121,13 @@ export default function AppNavigator() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {!session ? (
+        {passwordRecovery ? (
+          <Stack.Screen name="ResetPassword">
+            {(props) => <ResetPasswordScreen {...props} onDone={clearPasswordRecovery} />}
+          </Stack.Screen>
+        ) : !session ? (
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="SignUp" component={SignUpScreen} />

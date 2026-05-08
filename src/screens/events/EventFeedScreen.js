@@ -17,6 +17,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useEvents } from '../../hooks/useEvents';
 import { useMyRSVPs } from '../../hooks/useRSVP';
 import { useRecommendedEvents } from '../../hooks/useRecommendedEvents';
+import { useNotifications } from '../../hooks/useNotifications';
 import { useAuth } from '../../contexts/AuthContext';
 import { Avatar } from '../../components/Avatar';
 import { Badge } from '../../components/Badge';
@@ -150,6 +151,7 @@ export default function EventFeedScreen({ navigation }) {
   const { events: supabaseEvents, loading } = useEvents();
   const { goingEventIds, starredEventIds, savedEvents: allSavedEvents, refresh: refreshRSVPs } = useMyRSVPs();
   const { recommendations, refresh: refreshRecommendations } = useRecommendedEvents({ limit: 5 });
+  const { unreadCount } = useNotifications();
 
   // Refresh RSVP data whenever this screen comes into focus
   useFocusEffect(
@@ -194,7 +196,7 @@ export default function EventFeedScreen({ navigation }) {
           </View>
           <TouchableOpacity style={styles.notifBtn} onPress={() => navigation.navigate('Notifications')}>
             <Feather name="bell" size={20} color="#fff" />
-            <View style={styles.notifDot} />
+            {unreadCount > 0 && <View style={styles.notifDot} />}
           </TouchableOpacity>
         </View>
       </View>

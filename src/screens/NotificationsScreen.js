@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -6,13 +6,14 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '../components/Avatar';
 import { fonts } from '../theme/fonts';
-import { NOTIFICATIONS } from '../data/mockNotifications';
+import { useNotifications } from '../hooks/useNotifications';
 
 function NotificationCard({ notification, onPress }) {
   return (
@@ -55,26 +56,27 @@ function NotificationCard({ notification, onPress }) {
 
 export default function NotificationsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const [notifications, setNotifications] = useState(NOTIFICATIONS);
-  const [filter, setFilter] = useState('all');
+  const { notifications, unreadCount, loading, markAsRead, markAllRead } = useNotifications();
+  const [filter, setFilter] = React.useState('all');
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
-
-  const markAsRead = (notif) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n))
-    );
-  };
-
-  const markAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  const handlePress = (notif) => {
+    markAsRead(notif.id);
+    if (notif.type === 'friend_request' || notif.type === 'friend_accepted') {
+      if (notif.relatedUserId) {
+        navigation.navigate('UserProfile', { userId: notif.relatedUserId });
+      }
+    } else if (notif.type === 'friend_event') {
+      if (notif.relatedEventId) {
+        navigation.navigate('EventDetail', { eventId: notif.relatedEventId });
+      }
+    }
   };
 
   const filters = [
     { key: 'all', label: 'All' },
     { key: 'friend_event', label: 'Friends going' },
     { key: 'friend_request', label: 'Friend requests' },
-    { key: 'new_event', label: 'New events' },
+    { key: 'friend_accepted', label: 'Accepted' },
   ];
 
   const filtered =
@@ -133,22 +135,28 @@ export default function NotificationsScreen({ navigation }) {
       </View>
 
       {/* Notification list */}
-      <ScrollView
-        style={s.list}
-        contentContainerStyle={[s.listContent, { paddingBottom: insets.bottom + 24 }]}
-        showsVerticalScrollIndicator={false}
-      >
-        {filtered.length === 0 ? (
-          <View style={s.emptyWrap}>
-            <Feather name="bell-off" size={40} color="rgba(255,255,255,0.4)" />
-            <Text style={s.emptyText}>No notifications here</Text>
-          </View>
-        ) : (
-          filtered.map((n) => (
-            <NotificationCard key={n.id} notification={n} onPress={markAsRead} />
-          ))
-        )}
-      </ScrollView>
+      {loading ? (
+        <View style={s.emptyWrap}>
+          <ActivityIndicator size="large" color="#fff" />
+        </View>
+      ) : (
+        <ScrollView
+          style={s.list}
+          contentContainerStyle={[s.listContent, { paddingBottom: insets.bottom + 24 }]}
+          showsVerticalScrollIndicator={false}
+        >
+          {filtered.length === 0 ? (
+            <View style={s.emptyWrap}>
+              <Feather name="bell-off" size={40} color="rgba(255,255,255,0.4)" />
+              <Text style={s.emptyText}>No notifications yet</Text>
+            </View>
+          ) : (
+            filtered.map((n) => (
+              <NotificationCard key={n.id} notification={n} onPress={handlePress} />
+            ))
+          )}
+        </ScrollView>
+      )}
     </View>
   );
 }
