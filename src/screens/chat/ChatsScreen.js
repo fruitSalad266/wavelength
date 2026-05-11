@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,9 @@ import { Avatar } from '../../components/Avatar';
 import { fonts } from '../../theme/fonts';
 import { useMyGroupChats } from '../../hooks/useGroupChats';
 import { useDirectMessageThreads } from '../../hooks/useMessages';
+import { useStatusBubbles } from '../../hooks/useStatusBubbles';
+import { StatusBubblesStrip } from '../../components/StatusBubblesStrip';
+import { StatusNoteModal } from '../../components/StatusNoteModal';
 
 function formatTime(iso) {
   if (!iso) return '';
@@ -81,8 +84,23 @@ export default function ChatsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { chats: groupChats, loading: gcLoading } = useMyGroupChats();
   const { threads: dmThreads, loading: dmLoading } = useDirectMessageThreads();
+  const { bubbles, saveMyNote } = useStatusBubbles(dmThreads);
+  const [statusBubble, setStatusBubble] = useState(null);
 
   const loading = gcLoading || dmLoading;
+
+  const openStatus = useCallback((item) => {
+    setStatusBubble(item);
+  }, []);
+
+  const closeStatus = useCallback(() => setStatusBubble(null), []);
+
+  const onMessageFromStatus = useCallback(
+    (userId, userName) => {
+      navigation.navigate('DirectMessage', { userId, userName });
+    },
+    [navigation]
+  );
 
   return (
     <View style={s.root}>
@@ -104,6 +122,7 @@ export default function ChatsScreen({ navigation }) {
           contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
           showsVerticalScrollIndicator={false}
         >
+          <StatusBubblesStrip items={bubbles} onSelect={openStatus} />
           <View style={s.card}>
             <View style={s.sectionHeader}>
               <Feather name="users" size={16} color="#9810FA" />
@@ -147,6 +166,14 @@ export default function ChatsScreen({ navigation }) {
           </View>
         </ScrollView>
       )}
+
+      <StatusNoteModal
+        visible={!!statusBubble}
+        bubble={statusBubble}
+        onClose={closeStatus}
+        onSaveMine={saveMyNote}
+        onMessage={onMessageFromStatus}
+      />
     </View>
   );
 }
