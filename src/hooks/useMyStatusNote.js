@@ -5,15 +5,11 @@ const STORAGE_KEY = '@wavelength/my_status_note';
 
 export function useMyStatusNote() {
   const [note, setNote] = useState('');
-  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     AsyncStorage.getItem(STORAGE_KEY).then((v) => {
-      if (!cancelled) {
-        setNote(v || '');
-        setReady(true);
-      }
+      if (!cancelled) setNote(v || '');
     });
     return () => {
       cancelled = true;

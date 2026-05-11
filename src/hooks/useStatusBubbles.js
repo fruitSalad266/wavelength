@@ -8,7 +8,7 @@ import { demoNoteForUserId, EXTRA_STATUS_BUBBLES } from '../data/demoStatusBubbl
  */
 export function useStatusBubbles(dmThreads) {
   const { user, profile } = useAuth();
-  const { note: myNote, ready, saveNote } = useMyStatusNote();
+  const { note: myNote, saveNote } = useMyStatusNote();
 
   const bubbles = useMemo(() => {
     const list = [];
@@ -61,5 +61,5 @@ export function useStatusBubbles(dmThreads) {
     return list.slice(0, 14);
   }, [user, profile, dmThreads, myNote]);
 
-  return { bubbles, myNoteReady: ready, saveMyNote: saveNote };
+  return { bubbles, saveMyNote: saveNote };
 }

@@ -70,7 +70,9 @@ export function StatusBubblesStrip({ items, onSelect }) {
 
 const styles = StyleSheet.create({
   wrap: {
-    marginBottom: 4,
+    marginTop: 10,
+    marginBottom: 8,
+    paddingHorizontal: 12,
   },
   row: {
     paddingHorizontal: 4,
