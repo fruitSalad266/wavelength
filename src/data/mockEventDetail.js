@@ -27,6 +27,13 @@ export const EVENT = {
     album: '÷',
     searchUrl: 'https://www.google.com/search?q=shape+of+you',
   },
+  poll: {
+    icon: 'music',
+    label: 'Fan Poll',
+    question: "What's your favorite Ed Sheeran song?",
+    placeholder: 'e.g. Castle on the Hill, Perfect, Photograph...',
+    actionLabel: 'Submit',
+  },
 };
 
 export const ATTENDEES = [

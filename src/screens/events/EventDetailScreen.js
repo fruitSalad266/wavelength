@@ -10,6 +10,7 @@ import {
   Linking,
   Modal,
   Switch,
+  TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -149,6 +150,8 @@ export default function EventDetailScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
   const { profile: myProfile } = useAuth();
   const [markModalVisible, setMarkModalVisible] = useState(false);
+  const [pollAnswer, setPollAnswer] = useState('');
+  const [pollSubmitted, setPollSubmitted] = useState(false);
   const passedEvent = route?.params?.event;
   const eventId = route?.params?.eventId || passedEvent?.id;
   const [fetchedEvent, setFetchedEvent] = useState(null);
@@ -186,6 +189,13 @@ export default function EventDetailScreen({ route, navigation }) {
       priceMax: src.priceMax ?? src.price_max,
       signup: src.signup,
       source: src.source,
+      poll: src.poll ?? {
+        icon: 'star',
+        label: 'Fan Poll',
+        question: `What are you most excited about for ${src.title}?`,
+        placeholder: 'Share your thoughts...',
+        actionLabel: 'Submit',
+      },
     } : {}),
   };
 
@@ -336,42 +346,45 @@ export default function EventDetailScreen({ route, navigation }) {
             </GradientCard>
           )}
 
-          {/* Most Popular Song */}
-          <Card>
-            {event.detailCard?.type === 'prompt' ? (
-              <View style={s.songRow}>
+          {/* Event Poll */}
+          {!!event.poll && (
+            <Card>
+              <View style={s.pollHeader}>
                 <View style={s.songIcon}>
-                  <Feather name={event.detailCard.icon || 'message-circle'} size={22} color="#9810FA" />
+                  <Feather name={event.poll.icon || 'music'} size={22} color="#9810FA" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.songLabel}>{event.detailCard.label || 'Conversation starter'}</Text>
-                  <Text style={s.songTitle}>{event.detailCard.title}</Text>
-                  {!!event.detailCard.subtitle && (
-                    <Text style={s.songAlbum}>{event.detailCard.subtitle}</Text>
-                  )}
+                  <Text style={s.songLabel}>{event.poll.label}</Text>
+                  <Text style={s.pollQuestion}>{event.poll.question}</Text>
                 </View>
-                <TouchableOpacity style={s.voteBtn} activeOpacity={0.8}>
-                  <Text style={s.voteBtnText}>{event.detailCard.actionLabel || 'Post'}</Text>
-                </TouchableOpacity>
               </View>
-            ) : (
-              <View style={s.songRow}>
-                <View style={s.songIcon}>
-                  <Feather name="music" size={22} color="#9810FA" />
+              {pollSubmitted ? (
+                <View style={s.pollSubmitted}>
+                  <Feather name="check-circle" size={16} color={colors.teal} />
+                  <Text style={s.pollSubmittedText}>Answer submitted!</Text>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.songLabel}>{event.detailCard?.label || 'Most popular song'}</Text>
-                  <Text style={s.songTitle}>{event.detailCard?.title || event.popularSong?.title}</Text>
-                  <TouchableOpacity onPress={() => event.detailCard?.searchUrl && Linking.openURL(event.detailCard.searchUrl)}>
-                    <Text style={s.songAlbum}>{event.detailCard?.subtitle || event.popularSong?.album}</Text>
+              ) : (
+                <View style={s.pollInputRow}>
+                  <TextInput
+                    style={s.pollInput}
+                    placeholder={event.poll.placeholder}
+                    placeholderTextColor={colors.textMuted}
+                    value={pollAnswer}
+                    onChangeText={setPollAnswer}
+                    returnKeyType="done"
+                  />
+                  <TouchableOpacity
+                    style={[s.voteBtn, !pollAnswer.trim() && s.voteBtnDisabled]}
+                    activeOpacity={0.8}
+                    disabled={!pollAnswer.trim()}
+                    onPress={() => setPollSubmitted(true)}
+                  >
+                    <Text style={s.voteBtnText}>{event.poll.actionLabel || 'Submit'}</Text>
                   </TouchableOpacity>
                 </View>
-                <TouchableOpacity style={s.voteBtn} activeOpacity={0.8}>
-                  <Text style={s.voteBtnText}>{event.detailCard?.actionLabel || 'Vote'}</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </Card>
+              )}
+            </Card>
+          )}
 
           {/* Attendees You May Know */}
           <Card>
@@ -747,9 +760,53 @@ const s = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
   },
+  voteBtnDisabled: {
+    opacity: 0.4,
+  },
   voteBtnText: {
     color: '#fff',
     fontSize: 13,
+    fontFamily: fonts.medium,
+  },
+
+  // Poll
+  pollHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginBottom: 12,
+  },
+  pollQuestion: {
+    color: colors.text,
+    fontSize: 15,
+    fontFamily: fonts.semiBold,
+  },
+  pollInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  pollInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: 14,
+    fontFamily: fonts.regular,
+    color: colors.text,
+    backgroundColor: '#fafafa',
+  },
+  pollSubmitted: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingTop: 4,
+  },
+  pollSubmittedText: {
+    color: colors.teal,
+    fontSize: 14,
     fontFamily: fonts.medium,
   },
 
