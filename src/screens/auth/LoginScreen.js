@@ -14,6 +14,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Linking from 'expo-linking';
 import { supabase } from '../../lib/supabase';
 import { fonts } from '../../theme/fonts';
 import { colors } from '../../theme/colors';
@@ -35,8 +36,9 @@ export default function LoginScreen({ navigation }) {
       return;
     }
     setLoading(true);
+    const redirectUrl = Linking.createURL('reset-password');
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'wavelength://reset-password',
+      redirectTo: redirectUrl,
     });
     setLoading(false);
     if (error) {

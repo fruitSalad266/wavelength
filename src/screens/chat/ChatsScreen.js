@@ -22,6 +22,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useMyGroupChats } from '../../hooks/useGroupChats';
 import { useDirectMessageThreads } from '../../hooks/useMessages';
 import { useFriends } from '../../hooks/useFriends';
+import { useStatusBubbles } from '../../hooks/useStatusBubbles';
+import { StatusBubblesStrip } from '../../components/StatusBubblesStrip';
+import { StatusNoteModal } from '../../components/StatusNoteModal';
 
 function formatTime(iso) {
   if (!iso) return '';
@@ -95,18 +98,19 @@ export default function ChatsScreen({ navigation }) {
   const { user } = useAuth();
   const { chats: groupChats, loading: gcLoading, refresh: refreshGC } = useMyGroupChats();
   const { threads: dmThreads, loading: dmLoading, refresh: refreshDMs } = useDirectMessageThreads();
-
   const { friends } = useFriends();
+  const { bubbles, saveMyNote } = useStatusBubbles(dmThreads);
+
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [unreadIds, setUnreadIds] = useState(new Set());
   const [composeVisible, setComposeVisible] = useState(false);
   const [friendSearch, setFriendSearch] = useState('');
+  const [statusBubble, setStatusBubble] = useState(null);
   const searchRef = useRef(null);
 
   const loading = gcLoading || dmLoading;
 
-  // Refresh lists whenever the tab comes into focus
   useFocusEffect(
     useCallback(() => {
       refreshGC();
@@ -114,7 +118,6 @@ export default function ChatsScreen({ navigation }) {
     }, [refreshGC, refreshDMs])
   );
 
-  // Realtime subscription: mark sender as unread when a new DM arrives
   useEffect(() => {
     if (!user?.id) return;
     const ch = supabase
@@ -149,6 +152,13 @@ export default function ChatsScreen({ navigation }) {
       setTimeout(() => searchRef.current?.focus(), 50);
     }
   };
+
+  const openStatus = useCallback((item) => setStatusBubble(item), []);
+  const closeStatus = useCallback(() => setStatusBubble(null), []);
+  const onMessageFromStatus = useCallback(
+    (userId, userName) => navigation.navigate('DirectMessage', { userId, userName }),
+    [navigation]
+  );
 
   const q = searchQuery.toLowerCase();
   const filteredGroups = groupChats.filter((c) =>
@@ -209,6 +219,7 @@ export default function ChatsScreen({ navigation }) {
           contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
           showsVerticalScrollIndicator={false}
         >
+          <StatusBubblesStrip items={bubbles} onSelect={openStatus} />
           <View style={s.card}>
             <View style={s.sectionHeader}>
               <Feather name="users" size={16} color="#9810FA" />
@@ -309,6 +320,14 @@ export default function ChatsScreen({ navigation }) {
           </View>
         </View>
       </Modal>
+
+      <StatusNoteModal
+        visible={!!statusBubble}
+        bubble={statusBubble}
+        onClose={closeStatus}
+        onSaveMine={saveMyNote}
+        onMessage={onMessageFromStatus}
+      />
     </View>
   );
 }
