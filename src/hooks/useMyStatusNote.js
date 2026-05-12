@@ -26,5 +26,5 @@ export function useMyStatusNote() {
     }
   }, []);
 
-  return { note, ready, saveNote };
+  return { note, saveNote };
 }
