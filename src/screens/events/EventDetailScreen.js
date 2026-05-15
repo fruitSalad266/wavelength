@@ -28,7 +28,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { calculateMatchScore } from '../../utils/matchScore';
 import { MatchBadge } from '../../components/MatchBadge';
 import { supabase } from '../../lib/supabase';
-import { EVENT as DEFAULT_EVENT_DETAIL, MUTUAL_CONNECTIONS, FRIENDS_GOING } from '../../data/mockEventDetail';
+import { useFriends } from '../../hooks/useFriends';
+import { EVENT as DEFAULT_EVENT_DETAIL } from '../../data/mockEventDetail';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -49,17 +50,6 @@ function TagBadge({ label, variant }) {
   return (
     <View style={[s.tagBadge, { backgroundColor: bg, borderColor: border }]}>
       <Text style={[s.tagBadgeText, { color }]}>{label}</Text>
-    </View>
-  );
-}
-
-function MutualPersonCard({ person }) {
-  const firstName = person.name.split(' ')[0];
-  return (
-    <View style={s.mutualPerson}>
-      <Avatar uri={person.avatar} name={person.name} size={44} style={{ borderWidth: 0 }} />
-      <Text style={s.mutualName} numberOfLines={1}>{firstName}</Text>
-      <Text style={s.mutualCount}>{person.mutualFriends} mutual</Text>
     </View>
   );
 }
@@ -206,16 +196,26 @@ export default function EventDetailScreen({ route, navigation }) {
   } = useRSVP(event.id);
 
   const { chats: eventChats } = useEventGroupChats(event.id);
+  const { friends } = useFriends();
 
   const handleConfirmRsvp = () => {
     setMarkModalVisible(false);
   };
 
+  const friendIds = new Set(friends.map((f) => f.id));
+
   const scoredAttendees = realAttendees.map((a) => {
     if (!myProfile || !a.interests) return { ...a, matchScore: 0 };
-    const { score } = calculateMatchScore(myProfile, a);
-    return { ...a, matchScore: score };
+    const { score, breakdown } = calculateMatchScore(myProfile, a);
+    return { ...a, matchScore: score, breakdown };
   });
+
+  const friendsGoing = realAttendees.filter((a) => friendIds.has(a.id));
+
+  const mutualConnections = scoredAttendees
+    .filter((a) => !friendIds.has(a.id) && a.id !== myProfile?.id && a.matchScore > 0)
+    .sort((a, b) => b.matchScore - a.matchScore)
+    .slice(0, 6);
 
   const getMatchedAttendees = () => {
     return scoredAttendees.slice(0, 4);
@@ -281,19 +281,26 @@ export default function EventDetailScreen({ route, navigation }) {
 
         <View style={s.body}>
           {/* Friends Going */}
-          <Card>
-            <View style={s.friendsGoingHeader}>
-              <Feather name="heart" size={14} color="#9810FA" />
-              <Text style={s.friendsGoingLabel}>{FRIENDS_GOING.length} Friends Going</Text>
-            </View>
-            <View style={s.friendsGoingAvatars}>
-              {FRIENDS_GOING.map((friend, idx) => (
-                <View key={friend.id} style={{ marginLeft: idx > 0 ? -10 : 0, zIndex: FRIENDS_GOING.length - idx }}>
-                  <Avatar uri={friend.avatar} name={friend.name} size={38} style={{ borderWidth: 2, borderColor: '#fff' }} />
-                </View>
-              ))}
-            </View>
-          </Card>
+          {friendsGoing.length > 0 && (
+            <Card>
+              <View style={s.friendsGoingHeader}>
+                <Feather name="heart" size={14} color="#9810FA" />
+                <Text style={s.friendsGoingLabel}>{friendsGoing.length} {friendsGoing.length === 1 ? 'Friend' : 'Friends'} Going</Text>
+              </View>
+              <View style={s.friendsGoingAvatars}>
+                {friendsGoing.map((friend, idx) => (
+                  <TouchableOpacity
+                    key={friend.id}
+                    style={{ marginLeft: idx > 0 ? -10 : 0, zIndex: friendsGoing.length - idx }}
+                    activeOpacity={0.7}
+                    onPress={() => navigation.navigate('UserProfile', { userId: friend.id })}
+                  >
+                    <Avatar uri={friend.avatar} name={friend.name} size={38} style={{ borderWidth: 2, borderColor: '#fff' }} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </Card>
+          )}
 
           {/* Tickets / Signup (optional) */}
           {!!event.tickets && !!event.tickets.url && (
@@ -387,17 +394,30 @@ export default function EventDetailScreen({ route, navigation }) {
           )}
 
           {/* Attendees You May Know */}
-          <Card>
-            <Text style={s.cardTitle}>Attendees you may know</Text>
-            <FlatList
-              data={MUTUAL_CONNECTIONS}
-              keyExtractor={(item) => item.id}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 16 }}
-              renderItem={({ item }) => <MutualPersonCard person={item} />}
-            />
-          </Card>
+          {mutualConnections.length > 0 && (
+            <Card>
+              <Text style={s.cardTitle}>Attendees you may know</Text>
+              <FlatList
+                data={mutualConnections}
+                keyExtractor={(item) => item.id}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 16 }}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => navigation.navigate('UserProfile', { userId: item.id })}
+                  >
+                    <View style={s.mutualPerson}>
+                      <Avatar uri={item.avatar} name={item.name} size={44} style={{ borderWidth: 0 }} />
+                      <Text style={s.mutualName} numberOfLines={1}>{item.name?.split(' ')[0]}</Text>
+                      <Text style={s.mutualCount}>{item.matchScore}% match</Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
+              />
+            </Card>
+          )}
 
           {/* Who's Going */}
           <Card>
@@ -417,7 +437,7 @@ export default function EventDetailScreen({ route, navigation }) {
             <TouchableOpacity
               style={s.seeAllBtn}
               activeOpacity={0.7}
-              onPress={() => navigation.navigate('AllAttendees')}
+              onPress={() => navigation.navigate('AllAttendees', { eventId })}
             >
               <Text style={s.seeAllText}>See all attendees</Text>
             </TouchableOpacity>
