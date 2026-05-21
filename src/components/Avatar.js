@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { fonts } from '../theme/fonts';
+import { colors } from '../theme/colors';
 
 export function Avatar({ uri, name, size = 32, style }) {
   const [failed, setFailed] = useState(false);
@@ -35,7 +36,7 @@ const styles = StyleSheet.create({
   },
   image: {},
   fallback: {
-    backgroundColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: colors.purpleDark,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -94,18 +94,21 @@ export function useMessages({ groupChatId, recipientId }) {
             .eq('id', m.sender_id)
             .single()
             .then(({ data: sender }) => {
-              setMessages((prev) => [
-                ...prev,
-                {
-                  id: m.id,
-                  body: m.body,
-                  senderId: m.sender_id,
-                  senderName: sender?.full_name || 'Unknown',
-                  senderAvatar: sender?.avatar_url,
-                  createdAt: m.created_at,
-                  isMine: m.sender_id === user?.id,
-                },
-              ]);
+              setMessages((prev) => {
+                if (prev.some((msg) => msg.id === m.id)) return prev;
+                return [
+                  ...prev,
+                  {
+                    id: m.id,
+                    body: m.body,
+                    senderId: m.sender_id,
+                    senderName: sender?.full_name || 'Unknown',
+                    senderAvatar: sender?.avatar_url,
+                    createdAt: m.created_at,
+                    isMine: m.sender_id === user?.id,
+                  },
+                ];
+              });
             });
         }
       )
@@ -134,7 +137,26 @@ export function useMessages({ groupChatId, recipientId }) {
       row.recipient_id = recipientId;
     }
 
-    const { error } = await supabase.from('messages').insert(row);
+    const { data, error } = await supabase.from('messages').insert(row).select('id, created_at').single();
+
+    if (!error && data) {
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === data.id)) return prev;
+        return [
+          ...prev,
+          {
+            id: data.id,
+            body: row.body,
+            senderId: user.id,
+            senderName: 'You',
+            senderAvatar: null,
+            createdAt: data.created_at,
+            isMine: true,
+          },
+        ];
+      });
+    }
+
     return error;
   }, [user, groupChatId, recipientId]);
 

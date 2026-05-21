@@ -14,7 +14,7 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '../../components/Avatar';
 import { fonts } from '../../theme/fonts';
-import { MEMBER_META, FALLBACK_SQUAD_MEMBERS, buildSquadInitialMessages } from '../../data/mockMatchSquad';
+import { useAuth } from '../../contexts/AuthContext';
 
 function ChatBubble({ msg, isMe }) {
   return (
@@ -45,17 +45,16 @@ function ChatBubble({ msg, isMe }) {
 export default function MatchGroupChatScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const scrollRef = useRef(null);
+  const { profile: myProfile } = useAuth();
 
   const eventTitle = route.params?.eventTitle || 'This Event';
   const matchedAttendees = route.params?.matchedAttendees || [];
 
-  const fallbackMembers = FALLBACK_SQUAD_MEMBERS;
-  const rawMembers = matchedAttendees.length > 0 ? matchedAttendees : fallbackMembers;
-
-  const members = rawMembers.map((m) => {
-    const meta = MEMBER_META[m.name] || {};
-    return { ...m, ...meta };
-  });
+  const members = matchedAttendees.map((m) => ({
+    ...m,
+    major: m.major || '',
+    year: m.class_year ? `UW ${m.class_year}` : '',
+  }));
 
   const majors = members.map((m) => m.major).filter(Boolean);
   const years = members.map((m) => m.year).filter(Boolean);
@@ -75,8 +74,36 @@ export default function MatchGroupChatScreen({ navigation, route }) {
   const commonMajorBadges = buildCommonBadges(majors);
   const commonYearBadges = buildCommonBadges(years);
 
-  const initialMsgs = buildSquadInitialMessages(members, fallbackMembers);
-  const [messages, setMessages] = useState(initialMsgs);
+  const buildInitialMessages = () => {
+    if (members.length === 0) return [];
+    const msgs = [];
+    const starters = [
+      'So excited for this event! Anyone want to meet up beforehand?',
+      "Count me in! I'll be there early.",
+      "Can't wait! Let's figure out a meeting spot.",
+    ];
+    members.slice(0, 3).forEach((m, i) => {
+      msgs.push({
+        id: String(i + 1),
+        senderId: m.id,
+        senderName: m.name,
+        senderAvatar: m.avatar,
+        text: starters[i] || 'Sounds good!',
+        timestamp: `${3 - i}h ago`,
+      });
+    });
+    msgs.push({
+      id: 'me-1',
+      senderId: 'me',
+      senderName: 'You',
+      senderAvatar: myProfile?.avatar_url || '',
+      text: "Love this squad. Let's meet by the entrance right after doors open?",
+      timestamp: 'Just now',
+    });
+    return msgs;
+  };
+
+  const [messages, setMessages] = useState(buildInitialMessages);
   const [input, setInput] = useState('');
 
   const handleSend = () => {

@@ -5,23 +5,32 @@ alwaysApply: true
 
 # Wavelength – React Native / Expo app
 
-- **Stack:** Expo SDK 54, React Native, React Navigation (native-stack + bottom-tabs).
-- **Run:** `npm start` then Expo Go or simulator; use Expo APIs instead of bare RN when available.
+- **Stack:** Expo SDK 54, React Native, React Navigation (native-stack + bottom-tabs), Supabase backend.
+- **Run:** User runs `npm start` then Expo Go or simulator; use Expo APIs instead of bare RN when available.
 
 ## Navigation
 
 - **Tabs:** Home (EventFeed), Events, Chats, Profile. Defined in `src/navigation/AppNavigator.js`.
-- **Stack on top:** EventDetail, Settings, GroupChat, DirectMessage, Notifications. All use `headerShown: false`; screens draw their own headers.
+- **Stack on top:** EventDetail, Settings, GroupChat, MatchGroupChat, DirectMessage, Notifications, UserProfile, AllAttendees, SavedEvents, YourEvents, People, Friends. All use `headerShown: false`; screens draw their own headers.
 - Tab bar uses `LinearGradient` colors `['#7300ff', '#00ac9b']`; match this for full-screen gradients.
 
 ## Theming and UI
 
 - **Fonts:** Import from `../theme/fonts` (or `src/theme/fonts` from root). Use `fonts.regular`, `fonts.medium`, `fonts.semiBold`, `fonts.bold` for `fontFamily` in styles.
 - **Colors:** Primary purple `#7300ff`, teal `#00ac9b`. Use `LinearGradient` from `expo-linear-gradient` for backgrounds; Feather icons from `@expo/vector-icons`.
-- **Components:** Prefer existing `src/components/` (e.g. `Avatar`, `Badge`) before adding new ones.
+- **Images:** Use `Image` from `expo-image`, not React Native's built-in `Image`.
+- **Components:** Prefer existing `src/components/` (e.g. `Avatar`, `Badge`, `EventImage`, `ScreenHeader`) before adding new ones.
+
+## Data and architecture
+
+- **Live data:** Supabase via hooks in `src/hooks/` — never query Supabase directly from screens.
+- **Auth:** `src/contexts/AuthContext.js` provides `session`, `user`, `profile`, `loading`, `needsOnboarding`.
+- **Static UI data:** `src/data/profilePrompts.js` only.
+- **Backend:** Migrations in `supabase/migrations/`; edge functions in `supabase/functions/`.
 
 ## Conventions
 
-- Screens live in `src/screens/`, grouped by feature: `events/`, `chat/`, `profile/` (and root for e.g. `NotificationsScreen`). Navigation in `src/navigation/`, shared UI in `src/components/`, theme in `src/theme/` (fonts + colors), mock data in `src/data/`.
+- Screens live in `src/screens/`, grouped by feature: `auth/`, `events/`, `chat/`, `profile/` (and root for `NotificationsScreen`). Navigation in `src/navigation/`, shared UI in `src/components/`, theme in `src/theme/`.
 - Use `StyleSheet.create` for styles; use `useSafeAreaInsets()` for top/bottom padding so content clears notches and tab bar.
-- Prefer centralized mock data in `src/data/*.js` over inline constants in screens; use `src/theme/colors.js` for shared colors.
+- Use `colors` from `src/theme/colors.js` for shared palette values.
+- Agent MCP plugins: see `agent-tooling.mdc` and `AGENTS.md`.

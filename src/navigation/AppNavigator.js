@@ -8,6 +8,8 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import { fonts } from '../theme/fonts';
+import { navigationRef } from './navigationRef';
+import PushNotificationHandler from '../components/PushNotificationHandler';
 
 import LoginScreen from '../screens/auth/LoginScreen';
 import SignUpScreen from '../screens/auth/SignUpScreen';
@@ -121,7 +123,8 @@ export default function AppNavigator() {
   }
 
   return (
-    <NavigationContainer linking={linking}>
+    <NavigationContainer ref={navigationRef} linking={linking}>
+      {session && !needsOnboarding && !passwordRecovery && <PushNotificationHandler />}
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {passwordRecovery ? (
           <Stack.Screen name="ResetPassword">

@@ -48,12 +48,35 @@ async function fetchEvents() {
 
   const d = new Date();
   const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  const { data, error } = await supabase
-    .from('events')
-    .select('id,title,date,time,location,attendees,category,background_image,tags,tickets,detail_type,ticket_url,price_min,price_max,source')
-    .gt('date', today)
-    .order('date', { ascending: true })
-    .limit(200);
+  const pageSize = 1000;
+  let allData = [];
+  let from = 0;
+  let keepGoing = true;
+  let lastError = null;
+
+  while (keepGoing) {
+    const { data: page, error } = await supabase
+      .from('events')
+      .select('id,title,date,time,location,attendees,category,background_image,tags,tickets,detail_type,ticket_url,price_min,price_max,source')
+      .gt('date', today)
+      .order('date', { ascending: true })
+      .range(from, from + pageSize - 1);
+
+    if (error) {
+      lastError = error;
+      break;
+    }
+
+    allData = allData.concat(page);
+    if (page.length < pageSize) {
+      keepGoing = false;
+    } else {
+      from += pageSize;
+    }
+  }
+
+  const data = allData;
+  const error = lastError;
 
   if (!error && data) {
     cachedEvents = data.map(mapRow);

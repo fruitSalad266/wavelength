@@ -1,0 +1,40 @@
+---
+description: MCP plugins and tooling for AI agents on Wavelength
+alwaysApply: true
+---
+
+# Agent tooling
+
+Use the MCP servers below when working on this repo. Read each tool's schema before calling it.
+
+## Supabase MCP (`user-supabase`)
+
+Backend is Supabase. Use this MCP for schema, data, and edge functions — not the app codebase alone.
+
+- **Schema discovery:** `list_tables`, `list_migrations`
+- **Queries:** `execute_sql` for reads and ad-hoc SELECTs
+- **Schema changes:** `apply_migration` (writes files under `supabase/migrations/`) — never use `execute_sql` for DDL
+- **Edge functions:** `list_edge_functions`, `get_edge_function`, `deploy_edge_function` for `supabase/functions/`
+- **Debugging:** `get_logs`, `get_advisors`
+- **Docs:** `search_docs` for Supabase auth, RLS, storage, realtime
+
+App-side Supabase client: `src/lib/supabase.js`. Data hooks: `src/hooks/`. Screens must not import `@supabase/supabase-js` directly.
+
+## Context7 MCP (`plugin-context7-context7`)
+
+Use for current docs on Expo, React Native, React Navigation, and `@supabase/supabase-js`.
+
+1. Call `resolve-library-id` with the library name
+2. Call `query-docs` with the returned ID and a specific question
+
+Do not use Context7 for Wavelength business logic, screen layout, or refactoring existing app code.
+
+## npm / Expo
+
+Do not run `npm install`, `npm start`, or other npm commands unless the user explicitly asks. Tell the user which commands to run.
+
+## Data conventions
+
+- Live data: Supabase hooks in `src/hooks/`
+- Static UI constants only: `src/data/profilePrompts.js`
+- Do not recreate deleted mock data files; wire screens through hooks instead

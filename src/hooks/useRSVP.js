@@ -28,11 +28,13 @@ export function useRSVP(eventId) {
   const [loading, setLoading] = useState(true);
 
   // Fetch the user's own RSVP row
+  const [myNote, setMyNote] = useState('');
+
   const fetchMyRSVP = useCallback(async () => {
     if (!user || !eventId) return;
     const { data } = await supabase
       .from('event_rsvps')
-      .select('status, is_starred, is_public')
+      .select('status, is_starred, is_public, note')
       .eq('user_id', user.id)
       .eq('event_id', eventId)
       .maybeSingle();
@@ -41,10 +43,12 @@ export function useRSVP(eventId) {
       setRsvpStatus(data.status);
       setIsStarred(data.is_starred);
       setIsPublicState(data.is_public);
+      setMyNote(data.note || '');
     } else {
       setRsvpStatus(null);
       setIsStarred(false);
       setIsPublicState(true);
+      setMyNote('');
     }
   }, [user, eventId]);
 
@@ -55,6 +59,7 @@ export function useRSVP(eventId) {
       .from('event_rsvps')
       .select(`
         status,
+        note,
         user:profiles!event_rsvps_user_id_fkey(id, full_name, avatar_url, interests, major, class_year, extras)
       `)
       .eq('event_id', eventId)
@@ -65,6 +70,7 @@ export function useRSVP(eventId) {
       name: row.user?.full_name,
       avatar: row.user?.avatar_url,
       status: row.status,
+      note: row.note || '',
       interests: row.user?.interests,
       major: row.user?.major,
       class_year: row.user?.class_year,
@@ -146,16 +152,32 @@ export function useRSVP(eventId) {
     }
   }, [user, eventId, rsvpStatus]);
 
+  const saveNote = useCallback(async (text) => {
+    if (!user || !eventId) return;
+    const trimmed = (text || '').trim();
+    setMyNote(trimmed);
+    if (rsvpStatus) {
+      await supabase
+        .from('event_rsvps')
+        .update({ note: trimmed || null })
+        .eq('user_id', user.id)
+        .eq('event_id', eventId);
+      fetchAttendees();
+    }
+  }, [user, eventId, rsvpStatus, fetchAttendees]);
+
   return {
     rsvpStatus,
     isStarred,
     isPublic,
     attendees,
     attendeeCount,
+    myNote,
     loading,
     setRSVP,
     toggleStar,
     setPublic,
+    saveNote,
   };
 }
 

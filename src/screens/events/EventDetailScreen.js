@@ -29,7 +29,6 @@ import { calculateMatchScore } from '../../utils/matchScore';
 import { MatchBadge } from '../../components/MatchBadge';
 import { supabase } from '../../lib/supabase';
 import { useFriends } from '../../hooks/useFriends';
-import { EVENT as DEFAULT_EVENT_DETAIL } from '../../data/mockEventDetail';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -161,33 +160,30 @@ export default function EventDetailScreen({ route, navigation }) {
   }, [eventId, passedEvent]);
 
   const src = fetchedEvent || passedEvent;
-  const event = {
-    ...DEFAULT_EVENT_DETAIL,
-    ...(src ? {
-      id: src.id,
-      title: src.title,
-      venue: src.location,
-      date: formatShortDate(src.date),
-      time: src.time,
-      bannerImage: src.backgroundImage || src.background_image,
-      detailType: src.detailType || src.detail_type,
-      detailCard: src.detailCard,
-      tags: Array.isArray(src.tags) && src.tags.length > 0 ? src.tags : DEFAULT_EVENT_DETAIL.tags,
-      tickets: src.tickets,
-      ticketUrl: src.ticketUrl || src.ticket_url,
-      priceMin: src.priceMin ?? src.price_min,
-      priceMax: src.priceMax ?? src.price_max,
-      signup: src.signup,
-      source: src.source,
-      poll: src.poll ?? {
-        icon: 'star',
-        label: 'Fan Poll',
-        question: `What are you most excited about for ${src.title}?`,
-        placeholder: 'Share your thoughts...',
-        actionLabel: 'Submit',
-      },
-    } : {}),
-  };
+  const event = src ? {
+    id: src.id,
+    title: src.title || 'Event',
+    venue: src.location || '',
+    date: formatShortDate(src.date),
+    time: src.time || '',
+    bannerImage: src.backgroundImage || src.background_image,
+    detailType: src.detailType || src.detail_type,
+    detailCard: src.detailCard,
+    tags: Array.isArray(src.tags) && src.tags.length > 0 ? src.tags : [],
+    tickets: src.tickets || null,
+    ticketUrl: src.ticketUrl || src.ticket_url,
+    priceMin: src.priceMin ?? src.price_min,
+    priceMax: src.priceMax ?? src.price_max,
+    signup: src.signup || null,
+    source: src.source,
+    poll: src.poll ?? {
+      icon: 'star',
+      label: 'Fan Poll',
+      question: `What are you most excited about for ${src.title}?`,
+      placeholder: 'Share your thoughts...',
+      actionLabel: 'Submit',
+    },
+  } : { id: eventId, title: 'Event', venue: '', date: '', time: '', tags: [] };
 
   const {
     rsvpStatus, isStarred, isPublic,
@@ -217,9 +213,11 @@ export default function EventDetailScreen({ route, navigation }) {
     .sort((a, b) => b.matchScore - a.matchScore)
     .slice(0, 6);
 
-  const getMatchedAttendees = () => {
-    return scoredAttendees.slice(0, 4);
-  };
+  const getMatchedAttendees = () =>
+    scoredAttendees
+      .filter((a) => a.id !== myProfile?.id && a.matchScore >= 80)
+      .sort((a, b) => b.matchScore - a.matchScore)
+      .slice(0, 4);
 
   return (
     <View style={s.root}>

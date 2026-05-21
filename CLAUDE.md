@@ -20,25 +20,43 @@ No test, lint, or formatting tools are configured.
 - JavaScript only (no TypeScript)
 - `@react-navigation/native` with `native-stack` and `bottom-tabs`
 - `expo-linear-gradient`, `@expo/vector-icons` (Feather), `@expo-google-fonts/dm-sans`
-- No state management library — all data is currently mock data from `src/data/`
+- `expo-image` for optimized image rendering, `expo-image-picker` for photo selection
+- `expo-secure-store` for secure token storage
+- **Backend:** Supabase (auth, database, storage) via `@supabase/supabase-js`
+- **State:** `AuthContext` for session/profile; custom hooks in `src/hooks/` for data fetching
+
+## Environment Variables
+
+- `EXPO_PUBLIC_SUPABASE_URL` — Supabase project URL
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY` — Supabase anonymous key
 
 ## Architecture
 
-**Entry:** `App.js` loads DM Sans fonts, wraps with `SafeAreaProvider`, renders `AppNavigator`.
+**Entry:** `App.js` loads DM Sans fonts, wraps with `SafeAreaProvider` + `AuthProvider`, renders `AppNavigator`.
+
+**Auth** (`src/contexts/AuthContext.js`):
+- Provides `session`, `user`, `profile`, `loading`, `needsOnboarding`, `signOut`, `refreshProfile`
+- Supabase client in `src/lib/supabase.js` uses SecureStore for token persistence
+- Deep linking (`wavelength://reset-password`) for password recovery flow
 
 **Navigation** (`src/navigation/AppNavigator.js`):
+- Auth gates: unauthenticated → Login/SignUp; needs onboarding → Onboarding; password recovery → ResetPassword
 - Bottom tabs: Home (EventFeed), Events, Chats, Profile
-- Stack screens on top: EventDetail, Settings, GroupChat, MatchGroupChat, DirectMessage, Notifications, UserProfile, AllAttendees
+- Stack screens: EventDetail, Settings, GroupChat, MatchGroupChat, DirectMessage, Notifications, UserProfile, AllAttendees, SavedEvents, YourEvents, People, Friends
 - All screens use `headerShown: false` and draw custom headers
 - Tab bar uses `LinearGradient` with `['#7300ff', '#00ac9b']`
 
-**Screens** (`src/screens/`): Grouped by feature — `events/`, `chat/`, `profile/`, plus `NotificationsScreen.js` at root.
+**Screens** (`src/screens/`): Grouped by feature — `auth/`, `events/`, `chat/`, `profile/`, plus `NotificationsScreen.js` at root.
 
-**Shared components** (`src/components/`): Avatar, Badge, GradientCard, ScreenHeader, SectionHeader. Prefer reusing these before creating new ones.
+**Hooks** (`src/hooks/`): Data-fetching hooks that query Supabase — `useEvents`, `useRecommendedEvents`, `useRSVP`, `useFriends`, `useGroupChats`, `useMessages`, `useNotifications`.
+
+**Shared components** (`src/components/`): Avatar, Badge, EventImage, GradientCard, MatchBadge, ScreenHeader, SectionHeader, StatusNoteModal. Prefer reusing these before creating new ones.
 
 **Theme** (`src/theme/`): `fonts.js` exports `fonts.regular`, `.medium`, `.semiBold`, `.bold` (DM Sans). `colors.js` exports the full color palette — brand purple `#7300ff`, teal `#00ac9b`.
 
-**Mock data** (`src/data/`): All screen data lives here as static JS exports. No API calls exist yet.
+**Utilities** (`src/utils/`): `matchScore.js` for computing attendee match scores.
+
+**Mock data** (`src/data/`): Static JS exports used as fallbacks or demo data. Live data comes from Supabase via hooks.
 
 ## Conventions
 
@@ -48,5 +66,7 @@ No test, lint, or formatting tools are configured.
 - Full-screen gradients: `LinearGradient` with `colors={['#7300ff', '#00ac9b']}` and `style={StyleSheet.absoluteFill}`.
 - Cards: white/light background, `borderRadius: 10`, `borderColor: '#e5e7eb'`.
 - Custom headers with `Feather name="arrow-left"` for back navigation.
-- Keep mock data in `src/data/` rather than inline in screen files.
+- Data fetching belongs in `src/hooks/` — screens should call hooks, not query Supabase directly.
+- Keep mock/demo data in `src/data/` rather than inline in screen files.
 - Use Expo APIs over bare React Native equivalents when available.
+- Use `expo-image` (`Image` from `expo-image`) instead of React Native's built-in `Image` for better performance and caching.

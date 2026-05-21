@@ -632,14 +632,16 @@ export default function OnboardingScreen() {
 
       // Upload avatar if selected
       if (data.avatarUri) {
-        const ext = data.avatarUri.split('.').pop()?.toLowerCase() || 'jpg';
-        const path = `${user.id}/avatar.${ext}`;
+        const ext = data.avatarUri.split('.').pop()?.split('?')[0]?.toLowerCase() || 'jpg';
+        const mimeType = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
+        const path = `${user.id}/avatar_${Date.now()}.${ext}`;
+
         const response = await fetch(data.avatarUri);
-        const blob = await response.blob();
+        const arrayBuf = await response.arrayBuffer();
 
         const { error: uploadError } = await supabase.storage
           .from('avatars')
-          .upload(path, blob, { upsert: true, contentType: `image/${ext}` });
+          .upload(path, arrayBuf, { upsert: true, contentType: mimeType });
 
         if (!uploadError) {
           const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
@@ -647,18 +649,14 @@ export default function OnboardingScreen() {
         }
       }
 
+      updates.settings = { ...updates.settings, onboarding_complete: true };
+
       const { error } = await supabase
         .from('profiles')
         .update(updates)
         .eq('id', user.id);
 
       if (error) throw error;
-
-      // Mark onboarding complete
-      await supabase
-        .from('profiles')
-        .update({ settings: { onboarding_complete: true } })
-        .eq('id', user.id);
 
       // Refresh profile so navigator switches to main app
       await refreshProfile();

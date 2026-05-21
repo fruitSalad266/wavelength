@@ -17,7 +17,7 @@ import { fonts } from '../theme/fonts';
 
 const MAX_LEN = 56;
 
-export function StatusNoteModal({ visible, bubble, onClose, onSaveMine, onMessage }) {
+export function StatusNoteModal({ visible, bubble, onClose, onSaveMine, onMessage, subtitle }) {
   const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState('');
 
@@ -49,7 +49,7 @@ export function StatusNoteModal({ visible, bubble, onClose, onSaveMine, onMessag
             {bubble.isSelf ? (
               <>
                 <Text style={styles.title}>Your note</Text>
-                <Text style={styles.sub}>Friends see this at the top of Chats — like Instagram notes.</Text>
+                <Text style={styles.sub}>{subtitle || 'Share a short note with other attendees.'}</Text>
                 <TextInput
                   style={styles.input}
                   placeholder="What’s on your mind?"
@@ -81,9 +81,7 @@ export function StatusNoteModal({ visible, bubble, onClose, onSaveMine, onMessag
                   >
                     <Text style={styles.primaryBtnText}>Message</Text>
                   </TouchableOpacity>
-                ) : (
-                  <Text style={styles.hint}>Demo contact — open a DM to chat with friends on Wavelength.</Text>
-                )}
+                ) : null}
               </>
             )}
           </Pressable>
@@ -171,13 +169,5 @@ const styles = StyleSheet.create({
     color: '#374151',
     textAlign: 'center',
     lineHeight: 24,
-  },
-  hint: {
-    marginTop: 16,
-    fontSize: 13,
-    fontFamily: fonts.regular,
-    color: '#9ca3af',
-    textAlign: 'center',
-    lineHeight: 18,
   },
 });

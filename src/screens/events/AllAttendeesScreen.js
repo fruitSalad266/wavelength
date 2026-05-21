@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,10 +12,22 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '../../components/Avatar';
+import { StatusNoteModal } from '../../components/StatusNoteModal';
 import { fonts } from '../../theme/fonts';
 import { useRSVP } from '../../hooks/useRSVP';
 import { useAuth } from '../../contexts/AuthContext';
 import { calculateMatchScore } from '../../utils/matchScore';
+
+function ThoughtBubble({ text }) {
+  return (
+    <View style={s.thoughtWrap}>
+      <View style={s.thoughtBubble}>
+        <Text style={s.thoughtText} numberOfLines={2}>{text}</Text>
+      </View>
+      <View style={s.thoughtTail} />
+    </View>
+  );
+}
 
 function AttendeeRow({ attendee, onPress }) {
   const Wrapper = attendee.id ? TouchableOpacity : View;
@@ -23,6 +35,7 @@ function AttendeeRow({ attendee, onPress }) {
 
   return (
     <View style={s.attendeeWrap}>
+      {attendee.note ? <ThoughtBubble text={attendee.note} /> : null}
       <Wrapper style={s.attendeeRow} {...wrapperProps}>
         <Avatar uri={attendee.avatar} name={attendee.name} size={48} style={{ borderWidth: 0 }} />
         <View style={s.attendeeInfo}>
@@ -52,16 +65,21 @@ function AttendeeRow({ attendee, onPress }) {
 export default function AllAttendeesScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
   const eventId = route?.params?.eventId;
-  const { profile } = useAuth();
-  const { attendees, loading } = useRSVP(eventId);
+  const { user, profile } = useAuth();
+  const { attendees, myNote, loading, saveNote, rsvpStatus } = useRSVP(eventId);
   const [filter, setFilter] = useState('all');
+  const [modalBubble, setModalBubble] = useState(null);
 
   const enriched = attendees.map((a) => {
-    const { score } = calculateMatchScore(
-      profile || {},
-      { interests: a.interests, major: a.major, class_year: a.class_year, extras: a.extras },
-    );
-    return { ...a, matchPct: score };
+    const { score } = calculateMatchScore(profile || {}, {
+      id: a.id,
+      interests: a.interests,
+      major: a.major,
+      class_year: a.class_year,
+      extras: a.extras,
+    });
+    const isSelf = a.id === user?.id;
+    return { ...a, matchPct: isSelf ? 0 : score, note: isSelf ? myNote : a.note, isSelf };
   });
 
   const goingCount = enriched.filter((a) => a.status === 'going').length;
@@ -74,6 +92,19 @@ export default function AllAttendeesScreen({ route, navigation }) {
   ];
 
   const filtered = filter === 'all' ? enriched : enriched.filter((a) => a.status === filter);
+
+  const selfBubble = useMemo(() => {
+    if (!user || !profile || !rsvpStatus) return null;
+    return {
+      id: 'self',
+      isSelf: true,
+      userId: user.id,
+      name: 'Your thought',
+      displayTitle: 'Your thought',
+      avatar: profile.avatar_url,
+      text: myNote,
+    };
+  }, [user, profile, rsvpStatus, myNote]);
 
   return (
     <View style={s.root}>
@@ -109,6 +140,15 @@ export default function AllAttendeesScreen({ route, navigation }) {
         </ScrollView>
       </View>
 
+      {selfBubble && (
+        <TouchableOpacity style={s.thoughtBtn} activeOpacity={0.8} onPress={() => setModalBubble(selfBubble)}>
+          <Feather name="message-circle" size={15} color="#fff" />
+          <Text style={s.thoughtBtnText}>
+            {myNote ? 'Edit your thought' : 'Share a thought'}
+          </Text>
+        </TouchableOpacity>
+      )}
+
       {loading ? (
         <View style={s.loadingWrap}>
           <ActivityIndicator size="large" color="#fff" />
@@ -133,6 +173,15 @@ export default function AllAttendeesScreen({ route, navigation }) {
           ))}
         </ScrollView>
       )}
+
+      <StatusNoteModal
+        visible={!!modalBubble}
+        bubble={modalBubble}
+        onClose={() => setModalBubble(null)}
+        onSaveMine={(text) => saveNote(text)}
+        onMessage={(userId, userName) => navigation.navigate('DirectMessage', { userId, userName })}
+        subtitle="Share what you're thinking about this event — other attendees will see it here."
+      />
     </View>
   );
 }
@@ -159,6 +208,54 @@ const s = StyleSheet.create({
 
   list: { flex: 1 },
   listContent: { paddingHorizontal: 16, gap: 10 },
+
+  thoughtBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  thoughtBtnText: {
+    fontSize: 14,
+    fontFamily: fonts.medium,
+    color: '#fff',
+  },
+
+  thoughtWrap: {
+    alignItems: 'flex-start',
+    paddingLeft: 24,
+    marginBottom: -2,
+  },
+  thoughtBubble: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderBottomLeftRadius: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    maxWidth: '80%',
+  },
+  thoughtText: {
+    fontSize: 13,
+    fontFamily: fonts.regular,
+    color: '#374151',
+    lineHeight: 18,
+  },
+  thoughtTail: {
+    width: 10,
+    height: 10,
+    backgroundColor: '#fff',
+    borderRadius: 2,
+    transform: [{ rotate: '45deg' }],
+    marginTop: -5,
+    marginLeft: 16,
+  },
 
   attendeeWrap: {},
 

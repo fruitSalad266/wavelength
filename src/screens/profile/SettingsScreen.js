@@ -727,12 +727,12 @@ export default function SettingsScreen({ navigation }) {
         const mimeType = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
         const path = `${user.id}/avatar_${Date.now()}.${ext}`;
 
-        const formData = new FormData();
-        formData.append('file', { uri: newAvatarUri, name: `avatar.${ext}`, type: mimeType });
+        const response = await fetch(newAvatarUri);
+        const arrayBuf = await response.arrayBuffer();
 
         const { error: uploadError } = await supabase.storage
           .from('avatars')
-          .upload(path, formData, { upsert: true, contentType: mimeType });
+          .upload(path, arrayBuf, { upsert: true, contentType: mimeType });
 
         if (uploadError) throw uploadError;
 
@@ -745,12 +745,12 @@ export default function SettingsScreen({ navigation }) {
         const mimeType = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
         const path = `${user.id}/banner_${Date.now()}.${ext}`;
 
-        const formData = new FormData();
-        formData.append('file', { uri: newBannerUri, name: `banner.${ext}`, type: mimeType });
+        const response = await fetch(newBannerUri);
+        const arrayBuf = await response.arrayBuffer();
 
         const { error: bannerUploadError } = await supabase.storage
           .from('avatars')
-          .upload(path, formData, { upsert: true, contentType: mimeType });
+          .upload(path, arrayBuf, { upsert: true, contentType: mimeType });
 
         if (bannerUploadError) throw bannerUploadError;
 
