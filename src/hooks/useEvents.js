@@ -91,21 +91,26 @@ export function useEvents() {
   const [loading, setLoading] = useState(!cachedEvents);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    let cancelled = false;
-
+  const load = () => {
     fetchEvents().then(({ data, error: err }) => {
-      if (cancelled) return;
       if (err) {
         setError(err);
       } else {
+        setError(null);
         setEvents(data);
       }
       setLoading(false);
     });
+  };
 
-    return () => { cancelled = true; };
-  }, []);
+  useEffect(() => { load(); }, []);
 
-  return { events, loading, error };
+  const refresh = () => {
+    cachedEvents = null;
+    cacheTime = 0;
+    setLoading(true);
+    load();
+  };
+
+  return { events, loading, error, refresh };
 }

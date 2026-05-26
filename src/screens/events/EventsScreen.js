@@ -8,6 +8,7 @@ import {
   TextInput,
   TouchableOpacity,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -16,6 +17,7 @@ import { useEvents } from '../../hooks/useEvents';
 import { useMyRSVPs } from '../../hooks/useRSVP';
 import { Badge } from '../../components/Badge';
 import { EventImage } from '../../components/EventImage';
+import { ErrorState } from '../../components/ErrorState';
 import { fonts } from '../../theme/fonts';
 
 const categories = ['All', 'UW', 'Music', 'Art', 'Food', 'Sports', 'Networking', 'Technology'];
@@ -127,7 +129,7 @@ export default function EventsScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
   const searchRef = useRef(null);
   const [selectedQuickFilters, setSelectedQuickFilters] = useState([]);
-  const { events: supabaseEvents, loading } = useEvents();
+  const { events: supabaseEvents, loading, error: eventsError, refresh: refreshEvents } = useEvents();
   const { starredEventIds } = useMyRSVPs();
 
   const toggleQuickFilter = useCallback((filterKey) => {
@@ -259,6 +261,13 @@ export default function EventsScreen({ navigation }) {
         )}
       </View>
 
+      {loading ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color="#fff" />
+        </View>
+      ) : eventsError ? (
+        <ErrorState message="Couldn't load events" onRetry={refreshEvents} />
+      ) : (
       <FlatList
         data={filteredEvents}
         keyExtractor={(item) => item.id}
@@ -343,6 +352,7 @@ export default function EventsScreen({ navigation }) {
           />
         )}
       />
+      )}
     </View>
   );
 }

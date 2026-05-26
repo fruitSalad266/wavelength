@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
@@ -114,8 +115,13 @@ export default function DirectMessageScreen({ navigation, route }) {
     if (!messageText.trim()) return;
     const text = messageText.trim();
     setMessageText('');
-    await send(text);
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    const error = await send(text);
+    if (error) {
+      setMessageText(text);
+      Alert.alert('Send failed', 'Your message could not be sent. Please try again.');
+    } else {
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    }
   };
 
   const displayName = recipientProfile?.full_name || userName || 'Unknown';

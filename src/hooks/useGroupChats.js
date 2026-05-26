@@ -14,6 +14,7 @@ export function useMyGroupChats() {
   const { user } = useAuth();
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const fetchChats = useCallback(async () => {
     if (!user) return;
@@ -81,6 +82,7 @@ export function useMyGroupChats() {
     }));
 
     setChats(result);
+    setError(null);
     setLoading(false);
   }, [user]);
 
@@ -88,7 +90,7 @@ export function useMyGroupChats() {
     fetchChats();
   }, [fetchChats]);
 
-  return { chats, loading, refresh: fetchChats };
+  return { chats, loading, error, refresh: fetchChats };
 }
 
 /**

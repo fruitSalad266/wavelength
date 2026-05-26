@@ -12,6 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '../components/Avatar';
+import { ErrorState } from '../components/ErrorState';
 import { fonts } from '../theme/fonts';
 import { useNotifications } from '../hooks/useNotifications';
 
@@ -56,7 +57,7 @@ function NotificationCard({ notification, onPress }) {
 
 export default function NotificationsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { notifications, unreadCount, loading, markAsRead, markAllRead } = useNotifications();
+  const { notifications, unreadCount, loading, error, markAsRead, markAllRead, refresh } = useNotifications();
   const [filter, setFilter] = React.useState('all');
 
   const handlePress = (notif) => {
@@ -139,6 +140,8 @@ export default function NotificationsScreen({ navigation }) {
         <View style={s.emptyWrap}>
           <ActivityIndicator size="large" color="#fff" />
         </View>
+      ) : error ? (
+        <ErrorState message="Couldn't load notifications" onRetry={refresh} />
       ) : (
         <ScrollView
           style={s.list}

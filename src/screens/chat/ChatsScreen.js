@@ -16,6 +16,7 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Avatar } from '../../components/Avatar';
+import { ErrorState } from '../../components/ErrorState';
 import { fonts } from '../../theme/fonts';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -93,7 +94,7 @@ function EmptyState({ icon, text }) {
 export default function ChatsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { chats: groupChats, loading: gcLoading, refresh: refreshGC } = useMyGroupChats();
+  const { chats: groupChats, loading: gcLoading, error: gcError, refresh: refreshGC } = useMyGroupChats();
   const { threads: dmThreads, loading: dmLoading, refresh: refreshDMs } = useDirectMessageThreads();
   const { friends } = useFriends();
 
@@ -202,6 +203,8 @@ export default function ChatsScreen({ navigation }) {
         <View style={s.loadingWrap}>
           <ActivityIndicator size="large" color="#fff" />
         </View>
+      ) : gcError ? (
+        <ErrorState message="Couldn't load chats" onRetry={() => { refreshGC(); refreshDMs(); }} />
       ) : (
         <ScrollView
           contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}

@@ -8,6 +8,7 @@ import {
   FlatList,
   Dimensions,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -22,6 +23,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Avatar } from '../../components/Avatar';
 import { Badge } from '../../components/Badge';
 import { EventImage } from '../../components/EventImage';
+import { ErrorState } from '../../components/ErrorState';
 import { fonts } from '../../theme/fonts';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -148,7 +150,7 @@ function getLocalToday() {
 export default function EventFeedScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { profile } = useAuth();
-  const { events: supabaseEvents, loading } = useEvents();
+  const { events: supabaseEvents, loading, error: eventsError, refresh: refreshEvents } = useEvents();
   const { goingEventIds, starredEventIds, savedEvents: allSavedEvents, refresh: refreshRSVPs } = useMyRSVPs();
   const { recommendations, refresh: refreshRecommendations } = useRecommendedEvents({ limit: 5 });
   const { unreadCount } = useNotifications();
@@ -201,6 +203,13 @@ export default function EventFeedScreen({ navigation }) {
         </View>
       </View>
 
+      {loading ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color="#fff" />
+        </View>
+      ) : eventsError ? (
+        <ErrorState message="Couldn't load events" onRetry={refreshEvents} />
+      ) : (
       <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
           <Text style={styles.welcomeTitle}>Welcome back, {profile?.full_name?.split(' ')[0] || 'there'}!</Text>
@@ -309,6 +318,7 @@ export default function EventFeedScreen({ navigation }) {
           />
         ))}
       </ScrollView>
+      )}
     </View>
   );
 }

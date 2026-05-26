@@ -27,13 +27,14 @@ export function useNotifications() {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const subRef = useRef(null);
   const channelId = useRef(`notifications-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
 
-    const { data } = await supabase
+    const { data, error: fetchError } = await supabase
       .from('notifications')
       .select(`
         id, type, title, body, read, created_at,
@@ -44,6 +45,13 @@ export function useNotifications() {
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(50);
+
+    if (fetchError) {
+      setError(fetchError);
+      setLoading(false);
+      return;
+    }
+    setError(null);
 
     const mapped = (data || []).map((n) => {
       const icons = ICON_MAP[n.type] || ICON_MAP.friend_event;
@@ -118,5 +126,5 @@ export function useNotifications() {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  return { notifications, unreadCount, loading, markAsRead, markAllRead, refresh: fetchNotifications };
+  return { notifications, unreadCount, loading, error, markAsRead, markAllRead, refresh: fetchNotifications };
 }
