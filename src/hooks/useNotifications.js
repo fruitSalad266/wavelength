@@ -6,6 +6,7 @@ const ICON_MAP = {
   friend_request: { icon: 'user-plus', iconColor: '#00ac9b', iconBg: '#e6f9f5' },
   friend_accepted: { icon: 'user-check', iconColor: '#7300ff', iconBg: '#f3e8ff' },
   friend_event: { icon: 'calendar', iconColor: '#7300ff', iconBg: '#f3e8ff' },
+  direct_message: { icon: 'message-circle', iconColor: '#7300ff', iconBg: '#f3e8ff' },
 };
 
 function formatTime(dateStr) {

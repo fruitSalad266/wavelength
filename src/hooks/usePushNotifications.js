@@ -1,13 +1,13 @@
-import { useEffect, useRef } from 'react';
-import { Platform } from 'react-native';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { Platform, Linking } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
-async function getExpoPushToken() {
-  if (!Device.isDevice) return null;
+async function registerPushToken() {
+  if (!Device.isDevice) return { token: null, status: 'unsupported' };
 
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
@@ -15,7 +15,7 @@ async function getExpoPushToken() {
     const { status } = await Notifications.requestPermissionsAsync();
     finalStatus = status;
   }
-  if (finalStatus !== 'granted') return null;
+  if (finalStatus !== 'granted') return { token: null, status: finalStatus };
 
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
@@ -27,10 +27,10 @@ async function getExpoPushToken() {
 
   const projectId =
     Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
-  if (!projectId) return null;
+  if (!projectId) return { token: null, status: 'no_project' };
 
   const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
-  return data;
+  return { token: data, status: 'granted' };
 }
 
 async function savePushToken(userId, token) {
@@ -54,6 +54,21 @@ export function usePushNotifications() {
   const { user } = useAuth();
   const tokenRef = useRef(null);
   const userIdRef = useRef(null);
+  const [permissionStatus, setPermissionStatus] = useState('undetermined');
+
+  const requestPermission = useCallback(async () => {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status === 'denied') {
+      Linking.openSettings();
+      return;
+    }
+    const { token, status: newStatus } = await registerPushToken();
+    setPermissionStatus(newStatus);
+    if (token && user) {
+      tokenRef.current = token;
+      await savePushToken(user.id, token);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (!user) {
@@ -69,8 +84,10 @@ export function usePushNotifications() {
     let cancelled = false;
 
     (async () => {
-      const token = await getExpoPushToken();
-      if (cancelled || !token) return;
+      const { token, status } = await registerPushToken();
+      if (cancelled) return;
+      setPermissionStatus(status);
+      if (!token) return;
       tokenRef.current = token;
       await savePushToken(user.id, token);
     })();
@@ -79,4 +96,6 @@ export function usePushNotifications() {
       cancelled = true;
     };
   }, [user]);
+
+  return { permissionStatus, requestPermission };
 }

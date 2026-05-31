@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Avatar } from '../../components/Avatar';
 import { ErrorState } from '../../components/ErrorState';
+import { NotificationPromptBanner } from '../../components/PushNotificationHandler';
 import { fonts } from '../../theme/fonts';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -210,6 +211,7 @@ export default function ChatsScreen({ navigation }) {
           contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
           showsVerticalScrollIndicator={false}
         >
+          <NotificationPromptBanner />
           <View style={s.card}>
             <View style={s.sectionHeader}>
               <Feather name="users" size={16} color="#9810FA" />

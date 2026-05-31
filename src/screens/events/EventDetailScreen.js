@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Modal,
   Switch,
   TextInput,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -139,6 +140,7 @@ export default function EventDetailScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
   const { profile: myProfile } = useAuth();
   const [markModalVisible, setMarkModalVisible] = useState(false);
+  const [shareModalVisible, setShareModalVisible] = useState(false);
   const [pollAnswer, setPollAnswer] = useState('');
   const [pollSubmitted, setPollSubmitted] = useState(false);
   const passedEvent = route?.params?.event;
@@ -198,6 +200,27 @@ export default function EventDetailScreen({ route, navigation }) {
     setMarkModalVisible(false);
   };
 
+  const handleShareToFriend = useCallback(async (friend) => {
+    if (!myProfile) return;
+    const row = {
+      sender_id: myProfile.id,
+      recipient_id: friend.id,
+      body: `Shared an event`,
+      message_type: 'event_share',
+      shared_event_id: event.id,
+    };
+    const { error } = await supabase.from('messages').insert(row);
+    setShareModalVisible(false);
+    if (error) {
+      Alert.alert('Error', 'Could not share this event. Please try again.');
+    } else {
+      Alert.alert('Shared!', `Sent to ${friend.full_name}`, [
+        { text: 'View Chat', onPress: () => navigation.navigate('DirectMessage', { userId: friend.id, userName: friend.full_name }) },
+        { text: 'OK' },
+      ]);
+    }
+  }, [myProfile, event.id, navigation]);
+
   const friendIds = new Set(friends.map((f) => f.id));
 
   const scoredAttendees = realAttendees.map((a) => {
@@ -227,16 +250,24 @@ export default function EventDetailScreen({ route, navigation }) {
         insets={insets}
         onBack={() => navigation.goBack()}
         right={
-          <TouchableOpacity
-            onPress={toggleStar}
-            style={s.starBtn}
-          >
-            <Ionicons
-              name={isStarred ? 'star' : 'star-outline'}
-              size={20}
-              color={isStarred ? colors.star : colors.whiteSoft}
-            />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <TouchableOpacity
+              onPress={() => setShareModalVisible(true)}
+              style={s.starBtn}
+            >
+              <Feather name="send" size={18} color={colors.whiteSoft} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={toggleStar}
+              style={s.starBtn}
+            >
+              <Ionicons
+                name={isStarred ? 'star' : 'star-outline'}
+                size={20}
+                color={isStarred ? colors.star : colors.whiteSoft}
+              />
+            </TouchableOpacity>
+          </View>
         }
         showBackground={false}
       />
@@ -501,6 +532,36 @@ export default function EventDetailScreen({ route, navigation }) {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Share Modal */}
+      <Modal visible={shareModalVisible} transparent animationType="fade" onRequestClose={() => setShareModalVisible(false)}>
+        <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={() => setShareModalVisible(false)}>
+          <View style={s.modalCard} onStartShouldSetResponder={() => true}>
+            <Text style={s.modalTitle}>Share Event</Text>
+            <Text style={s.modalSub}>Send this event to a friend</Text>
+            {friends.length === 0 ? (
+              <Text style={s.shareEmptyText}>No friends to share with yet</Text>
+            ) : (
+              <ScrollView style={s.shareList} showsVerticalScrollIndicator={false}>
+                {friends.map((friend) => (
+                  <TouchableOpacity
+                    key={friend.id}
+                    style={s.shareRow}
+                    activeOpacity={0.7}
+                    onPress={() => handleShareToFriend(friend)}
+                  >
+                    <Avatar uri={friend.avatar_url} name={friend.full_name} size={40} style={{ borderWidth: 0 }} />
+                    <Text style={s.shareName} numberOfLines={1}>{friend.full_name}</Text>
+                    <View style={s.shareSendBtn}>
+                      <Feather name="send" size={14} color="#7300ff" />
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* RSVP Modal */}
       <Modal visible={markModalVisible} transparent animationType="fade" onRequestClose={() => setMarkModalVisible(false)}>
@@ -1209,5 +1270,38 @@ const s = StyleSheet.create({
     fontSize: 15,
     fontFamily: fonts.semiBold,
     color: '#fff',
+  },
+
+  shareList: {
+    maxHeight: 300,
+  },
+  shareRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  shareName: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: fonts.medium,
+    color: '#101828',
+  },
+  shareSendBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f3e8ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shareEmptyText: {
+    fontSize: 14,
+    fontFamily: fonts.regular,
+    color: '#9ca3af',
+    textAlign: 'center',
+    paddingVertical: 24,
   },
 });

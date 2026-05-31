@@ -681,12 +681,14 @@ export default function SettingsScreen({ navigation }) {
       const socialLinks = SOCIAL_PLATFORMS
         .filter((p) => profileData.socials[p.key]?.trim())
         .map((p) => {
-          const handle = profileData.socials[p.key].trim().replace(/^@/, '');
+          const raw = profileData.socials[p.key].trim();
+          const isFullUrl = raw.startsWith('http://') || raw.startsWith('https://');
+          const url = isFullUrl ? raw : p.urlBase + raw.replace(/^@/, '');
           return {
             icon: p.icon,
             color: p.color,
-            label: profileData.socials[p.key].trim(),
-            url: p.urlBase + handle,
+            label: raw,
+            url,
           };
         });
 

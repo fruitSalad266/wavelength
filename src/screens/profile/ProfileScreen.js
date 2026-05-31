@@ -346,9 +346,26 @@ export default function ProfileScreen({ navigation }) {
           </View>
 
           {/* Profile Prompts */}
-          {prompts.map((p) => (
-            <ProfilePromptCard key={p.id} promptData={p} />
-          ))}
+          {prompts.length > 0 ? (
+            prompts.map((p) => (
+              <ProfilePromptCard key={p.id} promptData={p} />
+            ))
+          ) : (
+            <TouchableOpacity
+              style={styles.promptNudge}
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('Settings')}
+            >
+              <View style={styles.promptNudgeIcon}>
+                <Feather name="message-circle" size={22} color="#7300ff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.promptNudgeTitle}>Add prompts to your profile</Text>
+                <Text style={styles.promptNudgeSub}>Help others get to know you — pick fun questions to answer</Text>
+              </View>
+              <Feather name="chevron-right" size={18} color="#9ca3af" />
+            </TouchableOpacity>
+          )}
 
           {/* Next Event */}
           {nextEvent && (
@@ -789,6 +806,39 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: fonts.regular,
     color: '#101828',
+  },
+
+  promptNudge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderWidth: 1.5,
+    borderColor: '#e5e7eb',
+    borderStyle: 'dashed',
+  },
+  promptNudgeIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#f3e8ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  promptNudgeTitle: {
+    fontSize: 14,
+    fontFamily: fonts.semiBold,
+    color: '#101828',
+    marginBottom: 2,
+  },
+  promptNudgeSub: {
+    fontSize: 12,
+    fontFamily: fonts.regular,
+    color: '#4a5565',
   },
 
   // UW Section

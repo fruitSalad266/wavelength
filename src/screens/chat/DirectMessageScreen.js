@@ -15,10 +15,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '../../components/Avatar';
+import { EventImage } from '../../components/EventImage';
 import { fonts } from '../../theme/fonts';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useMessages } from '../../hooks/useMessages';
+import { useNavigation } from '@react-navigation/native';
 
 function formatMsgTime(iso) {
   if (!iso) return '';
@@ -30,7 +32,75 @@ function formatMsgTime(iso) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+function formatShortDate(dateString) {
+  if (!dateString) return '';
+  const d = new Date(dateString);
+  if (Number.isNaN(d.getTime())) return dateString;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function EventShareBubble({ msg }) {
+  const navigation = useNavigation();
+  const ev = msg.sharedEvent;
+  if (!ev) return null;
+
+  return (
+    <View style={[s.bubbleWrap, msg.isMine && s.bubbleWrapMe]}>
+      <View style={[s.bubbleRow, msg.isMine && s.bubbleRowMe]}>
+        {!msg.isMine && (
+          <View style={s.bubbleAvatar}>
+            <Feather name="user" size={14} color="#7300ff" />
+          </View>
+        )}
+        <View style={s.bubbleContent}>
+          <TouchableOpacity
+            style={s.eventShareCard}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('EventDetail', { eventId: ev.id })}
+          >
+            <View style={s.eventShareImage}>
+              <EventImage uri={ev.background_image} source={ev.source} style={{ width: '100%', height: '100%' }} />
+              <LinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.6)']}
+                style={StyleSheet.absoluteFill}
+              />
+            </View>
+            <View style={s.eventShareInfo}>
+              <Text style={s.eventShareTitle} numberOfLines={2}>{ev.title}</Text>
+              <View style={s.eventShareMeta}>
+                {ev.date ? (
+                  <View style={s.eventShareMetaItem}>
+                    <Feather name="calendar" size={11} color="#4a5565" />
+                    <Text style={s.eventShareMetaText}>{formatShortDate(ev.date)}</Text>
+                  </View>
+                ) : null}
+                {ev.location ? (
+                  <View style={s.eventShareMetaItem}>
+                    <Feather name="map-pin" size={11} color="#4a5565" />
+                    <Text style={s.eventShareMetaText} numberOfLines={1}>{ev.location}</Text>
+                  </View>
+                ) : null}
+              </View>
+              <View style={s.eventShareCta}>
+                <Text style={s.eventShareCtaText}>View Event</Text>
+                <Feather name="chevron-right" size={12} color="#7300ff" />
+              </View>
+            </View>
+          </TouchableOpacity>
+          <Text style={[s.bubbleTime, msg.isMine && { textAlign: 'right' }]}>
+            {formatMsgTime(msg.createdAt)}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 function ChatBubble({ msg }) {
+  if (msg.messageType === 'event_share') {
+    return <EventShareBubble msg={msg} />;
+  }
+
   return (
     <View style={[s.bubbleWrap, msg.isMine && s.bubbleWrapMe]}>
       <View style={[s.bubbleRow, msg.isMine && s.bubbleRowMe]}>
@@ -380,5 +450,52 @@ const s = StyleSheet.create({
     backgroundColor: '#7300ff',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  eventShareCard: {
+    width: 220,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    overflow: 'hidden',
+  },
+  eventShareImage: {
+    width: '100%',
+    height: 110,
+    backgroundColor: '#f3e8ff',
+  },
+  eventShareInfo: {
+    padding: 10,
+  },
+  eventShareTitle: {
+    fontSize: 14,
+    fontFamily: fonts.semiBold,
+    color: '#101828',
+    marginBottom: 6,
+  },
+  eventShareMeta: {
+    gap: 4,
+    marginBottom: 8,
+  },
+  eventShareMetaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  eventShareMetaText: {
+    fontSize: 11,
+    fontFamily: fonts.regular,
+    color: '#4a5565',
+  },
+  eventShareCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  eventShareCtaText: {
+    fontSize: 12,
+    fontFamily: fonts.semiBold,
+    color: '#7300ff',
   },
 });

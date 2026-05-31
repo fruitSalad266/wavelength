@@ -13,6 +13,7 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '../components/Avatar';
 import { ErrorState } from '../components/ErrorState';
+import { NotificationPromptBanner } from '../components/PushNotificationHandler';
 import { fonts } from '../theme/fonts';
 import { useNotifications } from '../hooks/useNotifications';
 
@@ -62,7 +63,11 @@ export default function NotificationsScreen({ navigation }) {
 
   const handlePress = (notif) => {
     markAsRead(notif.id);
-    if (notif.type === 'friend_request' || notif.type === 'friend_accepted') {
+    if (notif.type === 'direct_message') {
+      if (notif.relatedUserId) {
+        navigation.navigate('DirectMessage', { userId: notif.relatedUserId });
+      }
+    } else if (notif.type === 'friend_request' || notif.type === 'friend_accepted') {
       if (notif.relatedUserId) {
         navigation.navigate('UserProfile', { userId: notif.relatedUserId });
       }
@@ -75,6 +80,7 @@ export default function NotificationsScreen({ navigation }) {
 
   const filters = [
     { key: 'all', label: 'All' },
+    { key: 'direct_message', label: 'Messages' },
     { key: 'friend_event', label: 'Friends going' },
     { key: 'friend_request', label: 'Friend requests' },
     { key: 'friend_accepted', label: 'Accepted' },
@@ -148,6 +154,7 @@ export default function NotificationsScreen({ navigation }) {
           contentContainerStyle={[s.listContent, { paddingBottom: insets.bottom + 24 }]}
           showsVerticalScrollIndicator={false}
         >
+          <NotificationPromptBanner />
           {filtered.length === 0 ? (
             <View style={s.emptyWrap}>
               <Feather name="bell-off" size={40} color="rgba(255,255,255,0.4)" />

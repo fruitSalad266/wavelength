@@ -16,6 +16,11 @@ export function navigateFromNotification(data) {
     return;
   }
 
+  if (type === 'direct_message' && relatedUserId) {
+    navigationRef.navigate('DirectMessage', { userId: relatedUserId });
+    return;
+  }
+
   if (type === 'friend_event' && relatedEventId) {
     navigationRef.navigate('EventDetail', { eventId: relatedEventId });
   }

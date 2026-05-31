@@ -112,9 +112,11 @@ function StepBasicInfo({ data, setData }) {
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
+      base64: true,
     });
     if (!result.canceled) {
-      setData({ ...data, avatarUri: result.assets[0].uri });
+      const asset = result.assets[0];
+      setData({ ...data, avatarUri: asset.uri, avatarBase64: asset.base64 });
     }
   };
 
@@ -392,8 +394,8 @@ function PromptAnswerInput({ prompt, answer, onChange }) {
 }
 
 function StepBioSocial({ data, setData }) {
-  const [pickerOpen, setPickerOpen] = useState(false);
   const selectedPrompts = data.prompts || [];
+  const [pickerOpen, setPickerOpen] = useState(selectedPrompts.length === 0);
 
   const addPrompt = (promptId) => {
     if (selectedPrompts.length >= MAX_PROMPTS) return;
@@ -403,7 +405,9 @@ function StepBioSocial({ data, setData }) {
   };
 
   const removePrompt = (idx) => {
-    setData({ ...data, prompts: selectedPrompts.filter((_, i) => i !== idx) });
+    const updated = selectedPrompts.filter((_, i) => i !== idx);
+    setData({ ...data, prompts: updated });
+    if (updated.length === 0) setPickerOpen(true);
   };
 
   const updateAnswer = (idx, answer) => {
@@ -419,7 +423,18 @@ function StepBioSocial({ data, setData }) {
   return (
     <>
       <Text style={s.stepTitle}>Make your profile yours</Text>
-      <Text style={s.stepSub}>Pick up to {MAX_PROMPTS} prompts — like Hinge, but for events</Text>
+      <Text style={s.stepSub}>
+        Prompts help people connect with you — pick at least one to get started
+      </Text>
+
+      {selectedPrompts.length === 0 && (
+        <View style={s.promptHint}>
+          <Feather name="message-circle" size={16} color="rgba(255,255,255,0.9)" />
+          <Text style={s.promptHintText}>
+            Profiles with prompts get more connections
+          </Text>
+        </View>
+      )}
 
       {selectedPrompts.map((sp, idx) => {
         const promptDef = getPromptById(sp.id);
@@ -449,10 +464,12 @@ function StepBioSocial({ data, setData }) {
 
           {pickerOpen && (
             <View style={s.promptPicker}>
+              <Text style={s.promptPickerTitle}>Pick a prompt to answer</Text>
               {availablePrompts.map((p) => (
                 <TouchableOpacity key={p.id} style={s.promptPickerItem} onPress={() => addPrompt(p.id)} activeOpacity={0.7}>
                   <Feather name={p.icon} size={16} color="rgba(255,255,255,0.8)" />
                   <Text style={s.promptPickerText}>{p.label}</Text>
+                  <Feather name="plus" size={14} color="rgba(255,255,255,0.5)" />
                 </TouchableOpacity>
               ))}
             </View>
@@ -636,17 +653,25 @@ export default function OnboardingScreen() {
         const mimeType = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
         const path = `${user.id}/avatar_${Date.now()}.${ext}`;
 
-        const response = await fetch(data.avatarUri);
-        const arrayBuf = await response.arrayBuffer();
+        let fileBody;
+        if (data.avatarBase64) {
+          const bin = atob(data.avatarBase64);
+          const bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          fileBody = bytes;
+        } else {
+          const response = await fetch(data.avatarUri);
+          fileBody = await response.arrayBuffer();
+        }
 
         const { error: uploadError } = await supabase.storage
           .from('avatars')
-          .upload(path, arrayBuf, { upsert: true, contentType: mimeType });
+          .upload(path, fileBody, { upsert: true, contentType: mimeType });
 
-        if (!uploadError) {
-          const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
-          updates.avatar_url = urlData.publicUrl;
-        }
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+        updates.avatar_url = urlData.publicUrl;
       }
 
       updates.settings = { ...updates.settings, onboarding_complete: true };
@@ -1031,9 +1056,32 @@ const s = StyleSheet.create({
     fontSize: 15,
     fontFamily: fonts.medium,
   },
+  promptHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    marginBottom: 16,
+  },
+  promptHintText: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 13,
+    fontFamily: fonts.medium,
+  },
   promptPicker: {
     gap: 6,
     marginBottom: 8,
+  },
+  promptPickerTitle: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 12,
+    fontFamily: fonts.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
   },
   promptPickerItem: {
     flexDirection: 'row',
@@ -1045,6 +1093,7 @@ const s = StyleSheet.create({
     borderRadius: 10,
   },
   promptPickerText: {
+    flex: 1,
     color: 'rgba(255,255,255,0.85)',
     fontSize: 15,
     fontFamily: fonts.regular,

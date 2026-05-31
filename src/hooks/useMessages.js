@@ -8,9 +8,9 @@ import { useAuth } from '../contexts/AuthContext';
  * Pass exactly one of: groupChatId or recipientId.
  *
  * Returns:
- *   messages  – [{ id, body, senderId, senderName, senderAvatar, createdAt, isMine }]
+ *   messages  – [{ id, body, senderId, senderName, senderAvatar, createdAt, isMine, messageType, sharedEvent }]
  *   loading   – boolean
- *   send      – (body: string) → send a message
+ *   send      – (body: string, options?) → send a message
  */
 export function useMessages({ groupChatId, recipientId }) {
   const { user } = useAuth();
@@ -30,7 +30,10 @@ export function useMessages({ groupChatId, recipientId }) {
         sender_id,
         recipient_id,
         group_chat_id,
-        sender:profiles!messages_sender_id_fkey(id, full_name, avatar_url)
+        message_type,
+        shared_event_id,
+        sender:profiles!messages_sender_id_fkey(id, full_name, avatar_url),
+        shared_event:events!messages_shared_event_id_fkey(id, title, date, time, location, background_image, source)
       `)
       .order('created_at', { ascending: false })
       .limit(100);
@@ -38,7 +41,6 @@ export function useMessages({ groupChatId, recipientId }) {
     if (groupChatId) {
       query = query.eq('group_chat_id', groupChatId);
     } else if (recipientId) {
-      // DMs: messages where I'm sender+they're recipient OR vice versa
       query = query
         .is('group_chat_id', null)
         .or(`and(sender_id.eq.${user.id},recipient_id.eq.${recipientId}),and(sender_id.eq.${recipientId},recipient_id.eq.${user.id})`);
@@ -54,6 +56,8 @@ export function useMessages({ groupChatId, recipientId }) {
       senderAvatar: m.sender?.avatar_url,
       createdAt: m.created_at,
       isMine: m.sender_id === user.id,
+      messageType: m.message_type || 'text',
+      sharedEvent: m.shared_event || null,
     }));
 
     setMessages(mapped);
@@ -94,21 +98,35 @@ export function useMessages({ groupChatId, recipientId }) {
             .eq('id', m.sender_id)
             .single()
             .then(({ data: sender }) => {
-              setMessages((prev) => {
-                if (prev.some((msg) => msg.id === m.id)) return prev;
-                return [
-                  ...prev,
-                  {
-                    id: m.id,
-                    body: m.body,
-                    senderId: m.sender_id,
-                    senderName: sender?.full_name || 'Unknown',
-                    senderAvatar: sender?.avatar_url,
-                    createdAt: m.created_at,
-                    isMine: m.sender_id === user?.id,
-                  },
-                ];
-              });
+              const enrichMsg = async () => {
+                let sharedEvent = null;
+                if (m.shared_event_id) {
+                  const { data: ev } = await supabase
+                    .from('events')
+                    .select('id, title, date, time, location, background_image, source')
+                    .eq('id', m.shared_event_id)
+                    .single();
+                  sharedEvent = ev;
+                }
+                setMessages((prev) => {
+                  if (prev.some((msg) => msg.id === m.id)) return prev;
+                  return [
+                    ...prev,
+                    {
+                      id: m.id,
+                      body: m.body,
+                      senderId: m.sender_id,
+                      senderName: sender?.full_name || 'Unknown',
+                      senderAvatar: sender?.avatar_url,
+                      createdAt: m.created_at,
+                      isMine: m.sender_id === user?.id,
+                      messageType: m.message_type || 'text',
+                      sharedEvent,
+                    },
+                  ];
+                });
+              };
+              enrichMsg();
             });
         }
       )
@@ -123,13 +141,20 @@ export function useMessages({ groupChatId, recipientId }) {
     };
   }, [fetchMessages, groupChatId, recipientId, user]);
 
-  const send = useCallback(async (body) => {
-    if (!user || !body.trim()) return;
+  const send = useCallback(async (body, options = {}) => {
+    const { sharedEventId, sharedEvent } = options;
+    if (!user) return;
+    if (!sharedEventId && (!body || !body.trim())) return;
 
     const row = {
       sender_id: user.id,
-      body: body.trim(),
+      body: body ? body.trim() : `Shared an event`,
     };
+
+    if (sharedEventId) {
+      row.message_type = 'event_share';
+      row.shared_event_id = sharedEventId;
+    }
 
     if (groupChatId) {
       row.group_chat_id = groupChatId;
@@ -152,6 +177,8 @@ export function useMessages({ groupChatId, recipientId }) {
             senderAvatar: null,
             createdAt: data.created_at,
             isMine: true,
+            messageType: row.message_type || 'text',
+            sharedEvent: sharedEvent || null,
           },
         ];
       });
@@ -183,6 +210,7 @@ export function useDirectMessageThreads() {
         created_at,
         sender_id,
         recipient_id,
+        message_type,
         sender:profiles!messages_sender_id_fkey(id, full_name, avatar_url),
         recipient:profiles!messages_recipient_id_fkey(id, full_name, avatar_url)
       `)
@@ -191,17 +219,17 @@ export function useDirectMessageThreads() {
       .order('created_at', { ascending: false })
       .limit(200);
 
-    // Group by conversation partner, keep latest message
     const threadMap = {};
     (data || []).forEach((m) => {
       const otherId = m.sender_id === user.id ? m.recipient_id : m.sender_id;
       if (!threadMap[otherId]) {
         const other = m.sender_id === user.id ? m.recipient : m.sender;
+        const preview = m.message_type === 'event_share' ? 'Shared an event' : m.body;
         threadMap[otherId] = {
           id: otherId,
           name: other?.full_name || 'Unknown',
           avatar: other?.avatar_url,
-          lastMessage: m.body,
+          lastMessage: preview,
           time: m.created_at,
         };
       }
